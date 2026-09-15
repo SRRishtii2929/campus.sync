@@ -1,0 +1,5 @@
+[functions.notify-targeted-students]
+verify_jwt = true
+
+[functions.notify-cr-update]
+verify_jwt = true
