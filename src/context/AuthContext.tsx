@@ -8,7 +8,7 @@ interface AuthContextType {
   profile: Profile | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
-  signUp: (email: string, password: string, fullName: string, role: UserRole, department: string, branch?: string, year?: string, section?: string, studentType?: StudentType) => Promise<{ error: string | null }>;
+  signUp: (email: string, password: string, fullName: string, role: UserRole, department: string, branch?: string, year?: string, section?: string, studentType?: StudentType, societyName?: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
 }
 
@@ -66,12 +66,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error: error?.message ?? null };
   }
 
-  async function signUp(email: string, password: string, fullName: string, role: UserRole, department: string, branch?: string, year?: string, section?: string, studentType?: StudentType) {
+  async function signUp(email: string, password: string, fullName: string, role: UserRole, department: string, branch?: string, year?: string, section?: string, studentType?: StudentType, societyName?: string) {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        data: { full_name: fullName, role, department, branch, year, section, student_type: studentType },
+        data: { full_name: fullName, role, department, branch, year, section, student_type: studentType, society_name: societyName },
       },
     });
 

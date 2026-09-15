@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
-import { GraduationCap, Mail, Lock, User, Loader2, AlertCircle, Building } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
+import { GraduationCap, Mail, Lock, User, Loader2, AlertCircle, Building, Users } from 'lucide-react';
 import type { UserRole, StudentType } from '@/lib/supabase';
 
 const BRANCHES = [
@@ -25,6 +26,7 @@ export default function Register() {
   const [year, setYear] = useState('');
   const [section, setSection] = useState('');
   const [studentType, setStudentType] = useState<StudentType>('regular');
+  const [societyName, setSocietyName] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -39,13 +41,33 @@ export default function Register() {
       setError('Please select your Branch, Year, and Section.');
       return;
     }
+    if (role === 'society_admin' && !societyName.trim()) {
+      setError('Please enter your Society Name.');
+      return;
+    }
+
+    if (role === 'society_admin') {
+      const { data: existing } = await supabase
+        .from('profiles')
+        .select('id')
+        .ilike('society_name', societyName.trim())
+        .maybeSingle();
+      if (existing) {
+        setError('This society is already registered.');
+        return;
+      }
+    }
+
     setLoading(true);
+    const effectiveFullName = role === 'society_admin' ? societyName.trim() : fullName;
+    const effectiveDepartment = role === 'society_admin' ? 'Society' : (department || 'General');
     const { error } = await signUp(
-      email, password, fullName, role, department || 'General',
+      email, password, effectiveFullName, role, effectiveDepartment,
       role === 'student' ? branch : undefined,
       role === 'student' ? year : undefined,
       role === 'student' ? section : undefined,
       role === 'student' ? studentType : undefined,
+      role === 'society_admin' ? societyName.trim() : undefined,
     );
     setLoading(false);
     if (error) {
@@ -77,20 +99,39 @@ export default function Register() {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">Full Name</label>
-              <div className="relative">
-                <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-                <input
-                  type="text"
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  required
-                  className="w-full pl-11 pr-4 py-2.5 rounded-xl border border-slate-300 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 outline-none transition-all"
-                  placeholder="John Doe"
-                />
+            {role !== 'society_admin' && (
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">Full Name</label>
+                <div className="relative">
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                  <input
+                    type="text"
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    required
+                    className="w-full pl-11 pr-4 py-2.5 rounded-xl border border-slate-300 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 outline-none transition-all"
+                    placeholder="John Doe"
+                  />
+                </div>
               </div>
-            </div>
+            )}
+            {role === 'society_admin' && (
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">Society Name</label>
+                <div className="relative">
+                  <Users className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                  <input
+                    type="text"
+                    value={societyName}
+                    onChange={(e) => setSocietyName(e.target.value)}
+                    required
+                    className="w-full pl-11 pr-4 py-2.5 rounded-xl border border-slate-300 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 outline-none transition-all"
+                    placeholder="Coding Society"
+                  />
+                </div>
+                <p className="text-xs text-slate-400 mt-1">This name uniquely identifies your society. It cannot be changed later.</p>
+              </div>
+            )}
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1.5">Email</label>
               <div className="relative">
@@ -121,19 +162,21 @@ export default function Register() {
               </div>
               <p className="text-xs text-slate-400 mt-1">Minimum 6 characters. Choose any password you like.</p>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">Department</label>
-              <div className="relative">
-                <Building className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-                <input
-                  type="text"
-                  value={department}
-                  onChange={(e) => setDepartment(e.target.value)}
-                  className="w-full pl-11 pr-4 py-2.5 rounded-xl border border-slate-300 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 outline-none transition-all"
-                  placeholder="Mathematics and Computing"
-                />
+            {role !== 'society_admin' && (
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">Department</label>
+                <div className="relative">
+                  <Building className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                  <input
+                    type="text"
+                    value={department}
+                    onChange={(e) => setDepartment(e.target.value)}
+                    className="w-full pl-11 pr-4 py-2.5 rounded-xl border border-slate-300 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 outline-none transition-all"
+                    placeholder="Mathematics and Computing"
+                  />
+                </div>
               </div>
-            </div>
+            )}
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1.5">Role</label>
               <div className="grid grid-cols-3 gap-2">

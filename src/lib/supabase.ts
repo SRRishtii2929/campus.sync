@@ -32,6 +32,7 @@ export interface Profile {
   section: string | null;
   student_type: StudentType | null;
   approval_status: ApprovalStatus | null;
+  society_name: string | null;
   created_at: string;
 }
 

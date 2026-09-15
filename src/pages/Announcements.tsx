@@ -74,7 +74,18 @@ export default function Announcements() {
   }, []);
 
   function resetForm() {
-    setForm({ title: '', content: '', society_name: '', date: new Date().toISOString().split('T')[0], event_date: '', event_time: '', registration_deadline: '', event_location: '', target_branches: [], target_years: [] });
+    setForm({
+      title: '',
+      content: '',
+      society_name: profile?.role === 'society_admin' ? (profile.society_name || profile.full_name) : '',
+      date: new Date().toISOString().split('T')[0],
+      event_date: '',
+      event_time: '',
+      registration_deadline: '',
+      event_location: '',
+      target_branches: [],
+      target_years: [],
+    });
     setEditingId(null);
     setShowForm(false);
   }
@@ -244,9 +255,17 @@ export default function Announcements() {
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Society Name</label>
-              <input type="text" value={form.society_name} onChange={(e) => setForm({ ...form, society_name: e.target.value })} required
-                className="w-full px-3 py-2 rounded-lg border border-slate-300 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 outline-none"
-                placeholder="Coding Society" />
+              <input
+                type="text"
+                value={form.society_name}
+                onChange={(e) => setForm({ ...form, society_name: e.target.value })}
+                required
+                readOnly={profile?.role === 'society_admin'}
+                className={`w-full px-3 py-2 rounded-lg border border-slate-300 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 outline-none ${
+                  profile?.role === 'society_admin' ? 'bg-slate-50 cursor-not-allowed text-slate-600' : ''
+                }`}
+                placeholder="Coding Society"
+              />
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Date</label>
