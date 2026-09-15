@@ -14,24 +14,33 @@ Deno.serve(async (req: Request) => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL") as string;
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") as string;
-    const anonKey = req.headers.get("Authorization")?.replace("Bearer ", "") || "";
 
-    const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
-      auth: { autoRefreshToken: false, persistSession: false },
-    });
-    const supabaseCaller = createClient(supabaseUrl, anonKey, {
-      auth: { autoRefreshToken: false, persistSession: false },
-    });
+    const authorization = req.headers.get("Authorization") || "";
+    const accessToken = authorization.startsWith("Bearer ")
+      ? authorization.slice(7)
+      : "";
 
-    // Verify caller is a college_admin
-    const { data: callerData } = await supabaseCaller.auth.getUser();
-    if (!callerData.user) {
+    if (!accessToken) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
+    const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
+
+    // Verify the caller's session token
+    const { data: callerData, error: callerError } = await supabaseAdmin.auth.getUser(accessToken);
+    if (callerError || !callerData.user) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Check the caller is a college_admin
     const { data: callerProfile } = await supabaseAdmin
       .from("profiles")
       .select("role")
@@ -83,20 +92,8 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    // Delete the profile row first (this cascades to related data via FK ON DELETE CASCADE)
-    const { error: profileDeleteError } = await supabaseAdmin
-      .from("profiles")
-      .delete()
-      .eq("id", target_user_id);
-
-    if (profileDeleteError) {
-      return new Response(JSON.stringify({ error: "Failed to delete profile: " + profileDeleteError.message }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    // Delete the auth user — this permanently removes login credentials
+    // Delete the auth user — this permanently removes login credentials.
+    // The profiles row is removed automatically via ON DELETE CASCADE on the FK.
     const { error: authDeleteError } = await supabaseAdmin.auth.admin.deleteUser(target_user_id);
 
     if (authDeleteError) {
@@ -105,6 +102,9 @@ Deno.serve(async (req: Request) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    // Ensure the profile row is gone even if the cascade was not applied
+    await supabaseAdmin.from("profiles").delete().eq("id", target_user_id);
 
     return new Response(JSON.stringify({ success: true, message: `Account ${targetProfile.email} permanently deleted` }), {
       status: 200,
