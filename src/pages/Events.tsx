@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { supabase, type EventEntry, type ClassEntry, type Announcement } from '@/lib/supabase';
+import { useHighlight } from '@/lib/useHighlight';
 import { useAuth } from '@/context/AuthContext';
 import { detectClashes, formatDate, formatTime12 } from '@/lib/clashDetection';
 import ClashBadge from '@/components/ClashBadge';
@@ -36,6 +37,7 @@ export default function Events() {
   });
 
   const isCollegeAdmin = profile?.role === 'college_admin';
+  useHighlight();
 
   async function loadData() {
     const [eventsRes, classesRes, announcementsRes] = await Promise.all([
@@ -310,10 +312,10 @@ export default function Events() {
             <p className="text-slate-400">No events scheduled yet.</p>
           </div>
         ) : (
-          events.map((evt) => {
+          events.map((evt, idx) => {
             const hasClash = eventClashIds.has(evt.id);
             return (
-              <div key={evt.id} className={`group bg-white rounded-2xl border-2 p-5 shadow-sm transition-all ${
+              <div key={evt.id} id={idx === 0 ? 'upcoming-events' : undefined} className={`group bg-white rounded-2xl border-2 p-5 shadow-sm transition-all ${
                 hasClash ? 'border-red-300' : 'border-slate-200 hover:border-teal-300 hover:shadow-md'
               }`}>
                 <div className="flex items-start justify-between gap-2 mb-3">

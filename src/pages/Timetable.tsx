@@ -3,6 +3,7 @@ import { supabase, type ClassEntry, type EventEntry, type Announcement } from '@
 import { useAuth } from '@/context/AuthContext';
 import { detectClashes, formatTime12 } from '@/lib/clashDetection';
 import ClashBadge from '@/components/ClashBadge';
+import { useHighlight } from '@/lib/useHighlight';
 import { Plus, Trash2, Loader2, AlertTriangle, Clock, MapPin, Calendar } from 'lucide-react';
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'] as const;
@@ -40,6 +41,7 @@ export default function Timetable() {
   }, []);
 
   const clashes = detectClashes(classes, events, undefined, announcements);
+  useHighlight();
   const classClashes = clashes.filter((clash) => clash.type === 'class_class' || clash.type === 'class_event' || clash.type === 'class_announcement');
   const clashedClassIds = new Set<string>();
   clashes.forEach((c) => {
@@ -107,7 +109,7 @@ export default function Timetable() {
       </div>
 
       {classClashes.length > 0 && (
-        <div className="mb-8">
+        <div className="mb-8" id="clashes">
           <div className="flex items-center gap-2 mb-4">
             <AlertTriangle className="w-5 h-5 text-red-600" />
             <h2 className="text-xl font-bold text-slate-800">Schedule Clashes ({classClashes.length})</h2>

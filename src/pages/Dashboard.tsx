@@ -5,6 +5,7 @@ import { supabase, type ClassEntry, type EventEntry, type Notice, type Announcem
 import { detectClashes, formatDate, formatTime12 } from '@/lib/clashDetection';
 import ClashBadge from '@/components/ClashBadge';
 import TargetAudienceBadge from '@/components/TargetAudienceBadge';
+import { useHighlight } from '@/lib/useHighlight';
 import { Calendar, Bell, Megaphone, Users, AlertTriangle, ArrowRight, Clock, MapPin, Plus, Loader2, X, CheckCircle2, AlertCircle, GraduationCap, FileText } from 'lucide-react';
 
 const UPDATE_TYPES = [
@@ -37,6 +38,7 @@ export default function Dashboard() {
   const isApprovedCR = profile?.role === 'student' && profile?.student_type === 'cr' && profile?.approval_status === 'approved';
   const isPendingCR = profile?.role === 'student' && profile?.student_type === 'cr' && profile?.approval_status !== 'approved';
   const isStudent = profile?.role === 'student';
+  useHighlight();
 
   useEffect(() => {
     async function loadData() {
@@ -282,7 +284,7 @@ export default function Dashboard() {
       )}
 
       {isStudent && myCrUpdates.length > 0 && (
-        <div className="mb-8 bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+        <div className="mb-8 bg-white rounded-2xl border border-slate-200 p-6 shadow-sm" id="cr-updates">
           <div className="flex items-center gap-2 mb-4">
             <GraduationCap className="w-5 h-5 text-teal-600" />
             <h2 className="text-lg font-semibold text-slate-800">Class Updates ({myCrUpdates.length})</h2>
@@ -362,7 +364,7 @@ export default function Dashboard() {
         </div>
         )}
 
-        <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+        <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm" id="upcoming-events">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <Users className="w-5 h-5 text-teal-600" />
@@ -401,7 +403,7 @@ export default function Dashboard() {
           )}
         </div>
 
-        <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+        <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm" id="latest-notice">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <Bell className="w-5 h-5 text-amber-500" />
@@ -428,7 +430,7 @@ export default function Dashboard() {
           )}
         </div>
 
-        <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+        <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm" id="latest-announcement">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <Megaphone className="w-5 h-5 text-purple-500" />

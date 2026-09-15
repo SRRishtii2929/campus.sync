@@ -3,6 +3,7 @@ import { supabase, type Notice } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
 import { formatDate } from '@/lib/clashDetection';
 import TargetAudienceBadge from '@/components/TargetAudienceBadge';
+import { useHighlight } from '@/lib/useHighlight';
 import { Plus, Trash2, Loader2, Bell, Pencil, X, FileText, AlertCircle, CheckCircle2, Building, Calendar, Target } from 'lucide-react';
 
 const BRANCHES = [
@@ -34,6 +35,7 @@ export default function Notices() {
   });
 
   const isCollegeAdmin = profile?.role === 'college_admin';
+  useHighlight();
 
   async function loadData() {
     const { data } = await supabase.from('notices').select('*').order('date', { ascending: false });
@@ -318,8 +320,8 @@ export default function Notices() {
             <p className="text-slate-400">No notices published yet.</p>
           </div>
         ) : (
-          notices.map((notice) => (
-            <div key={notice.id} className="group bg-white rounded-2xl border border-slate-200 p-5 shadow-sm hover:shadow-md transition-all">
+          notices.map((notice, idx) => (
+            <div key={notice.id} id={idx === 0 ? 'latest-notice' : undefined} className="group bg-white rounded-2xl border border-slate-200 p-5 shadow-sm hover:shadow-md transition-all">
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1">
                   <div className="flex items-center gap-2 flex-wrap mb-2">

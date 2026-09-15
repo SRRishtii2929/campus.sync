@@ -4,6 +4,7 @@ import { useAuth } from '@/context/AuthContext';
 import { detectClashes, formatDate } from '@/lib/clashDetection';
 import ClashBadge from '@/components/ClashBadge';
 import TargetAudienceBadge from '@/components/TargetAudienceBadge';
+import { useHighlight } from '@/lib/useHighlight';
 import { Plus, Trash2, Loader2, Megaphone, Pencil, X, AlertCircle, CheckCircle2, Calendar, Clock, MapPin, AlertTriangle, Target, Clock4 } from 'lucide-react';
 
 const BRANCHES = [
@@ -43,6 +44,7 @@ export default function Announcements() {
   const canDelete = isApprovedSocietyAdmin || profile?.role === 'college_admin';
   const isStudent = profile?.role === 'student';
   const isPendingSocietyAdmin = profile?.role === 'society_admin' && profile?.approval_status !== 'approved';
+  useHighlight();
 
   const clashes = isStudent ? detectClashes(classes, events, undefined, announcements) : [];
   const announcementClashes = clashes.filter((clash) => clash.type === 'class_announcement' || clash.type === 'announcement_announcement' || clash.type === 'event_announcement');
@@ -360,10 +362,10 @@ export default function Announcements() {
             <p className="text-slate-400">No announcements yet.</p>
           </div>
         ) : (
-          announcements.map((ann) => {
+          announcements.map((ann, idx) => {
             const hasClash = clashedAnnouncementIds.has(ann.id);
             return (
-            <div key={ann.id} className={`group bg-white rounded-2xl border-2 p-5 shadow-sm transition-all ${
+            <div key={ann.id} id={idx === 0 ? 'latest-announcement' : undefined} className={`group bg-white rounded-2xl border-2 p-5 shadow-sm transition-all ${
               hasClash ? 'border-red-300' : 'border-slate-200 hover:shadow-md'
             }`}>
               <div className="flex items-start justify-between gap-4">
