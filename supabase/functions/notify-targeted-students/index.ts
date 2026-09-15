@@ -20,9 +20,10 @@ Deno.serve(async (req: Request) => {
     const body = await req.json();
     const noticeId = body.notice_id;
     const announcementId = body.announcement_id;
+    const eventId = body.event_id;
 
-    if (!noticeId && !announcementId) {
-      return new Response(JSON.stringify({ error: "notice_id or announcement_id is required" }), {
+    if (!noticeId && !announcementId && !eventId) {
+      return new Response(JSON.stringify({ error: "notice_id, announcement_id, or event_id is required" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -30,8 +31,10 @@ Deno.serve(async (req: Request) => {
 
     if (noticeId) {
       return await notifyNotice(supabase, noticeId, corsHeaders);
-    } else {
+    } else if (announcementId) {
       return await notifyAnnouncement(supabase, announcementId, corsHeaders);
+    } else {
+      return await notifyEvent(supabase, eventId, corsHeaders);
     }
   } catch (err) {
     return new Response(JSON.stringify({ error: err.message }), {
@@ -91,6 +94,31 @@ async function notifyAnnouncement(supabase: any, announcementId: string, corsHea
     });
 }
 
+async function notifyEvent(supabase: any, eventId: string, corsHeaders: Record<string, string>) {
+    const { data: evt, error: evtError } = await supabase
+      .from("events")
+      .select("id, title, description, target_branches, target_years")
+      .eq("id", eventId)
+      .maybeSingle();
+
+    if (evtError || !evt) {
+      return new Response(JSON.stringify({ error: "Event not found" }), {
+        status: 404,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    return await sendNotifications(supabase, corsHeaders, {
+      itemId: evt.id,
+      tableName: "events",
+      fkColumn: "event_id",
+      title: evt.title,
+      description: evt.description,
+      targetBranches: evt.target_branches,
+      targetYears: evt.target_years,
+    });
+}
+
 async function sendNotifications(
   supabase: any,
   corsHeaders: Record<string, string>,
@@ -145,6 +173,7 @@ async function sendNotifications(
       user_id: s.id,
       notice_id: opts.tableName === "notices" ? opts.itemId : null,
       announcement_id: opts.tableName === "announcements" ? opts.itemId : null,
+      event_id: opts.tableName === "events" ? opts.itemId : null,
       title: opts.title,
       description: opts.description,
     }));

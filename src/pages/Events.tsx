@@ -3,7 +3,16 @@ import { supabase, type EventEntry, type ClassEntry, type Announcement } from '@
 import { useAuth } from '@/context/AuthContext';
 import { detectClashes, formatDate, formatTime12 } from '@/lib/clashDetection';
 import ClashBadge from '@/components/ClashBadge';
-import { Plus, Trash2, Loader2, AlertTriangle, Clock, MapPin, Calendar, Users, Pencil, X } from 'lucide-react';
+import TargetAudienceBadge from '@/components/TargetAudienceBadge';
+import { Plus, Trash2, Loader2, AlertTriangle, Clock, MapPin, Calendar, Users, Pencil, X, Target } from 'lucide-react';
+
+const BRANCHES = [
+  'CSE', 'CSAI', 'CSE-CS', 'MAC', 'MAE', 'RAIE', 'ECE', 'ECE-AI',
+  'DMAM', 'IT', 'AIML', 'BSc-MSc Physics', 'BSc-MSc Maths',
+  'BSc-MSc Chemistry', 'BBA',
+] as const;
+
+const YEARS = ['1st Year', '2nd Year', '3rd Year', '4th Year', '5th Year'] as const;
 
 export default function Events() {
   const { profile } = useAuth();
@@ -22,6 +31,8 @@ export default function Events() {
     end_time: '12:00',
     location: '',
     organizer: 'College Administration',
+    target_branches: [] as string[],
+    target_years: [] as string[],
   });
 
   const isCollegeAdmin = profile?.role === 'college_admin';
@@ -55,14 +66,34 @@ export default function Events() {
   });
 
   function resetForm() {
-    setForm({ title: '', description: '', date: '', start_time: '10:00', end_time: '12:00', location: '', organizer: 'College Administration' });
+    setForm({ title: '', description: '', date: '', start_time: '10:00', end_time: '12:00', location: '', organizer: 'College Administration', target_branches: [], target_years: [] });
     setEditingId(null);
     setShowForm(false);
+  }
+
+  function toggleBranch(branch: string) {
+    setForm((prev) => ({
+      ...prev,
+      target_branches: prev.target_branches.includes(branch)
+        ? prev.target_branches.filter((b) => b !== branch)
+        : [...prev.target_branches, branch],
+    }));
+  }
+
+  function toggleYear(year: string) {
+    setForm((prev) => ({
+      ...prev,
+      target_years: prev.target_years.includes(year)
+        ? prev.target_years.filter((y) => y !== year)
+        : [...prev.target_years, year],
+    }));
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setSubmitting(true);
+    const targetBranches = form.target_branches.length > 0 ? form.target_branches : null;
+    const targetYears = form.target_years.length > 0 ? form.target_years : null;
     if (editingId) {
       const { error } = await supabase.from('events').update({
         title: form.title,
@@ -72,10 +103,12 @@ export default function Events() {
         end_time: form.end_time,
         location: form.location || 'TBD',
         organizer: form.organizer,
+        target_branches: targetBranches,
+        target_years: targetYears,
       }).eq('id', editingId);
       if (error) alert('Error updating event: ' + error.message);
     } else {
-      const { error } = await supabase.from('events').insert({
+      const { data: insertData, error } = await supabase.from('events').insert({
         title: form.title,
         description: form.description,
         date: form.date,
@@ -83,8 +116,20 @@ export default function Events() {
         end_time: form.end_time,
         location: form.location || 'TBD',
         organizer: form.organizer,
-      });
-      if (error) alert('Error creating event: ' + error.message);
+        target_branches: targetBranches,
+        target_years: targetYears,
+      }).select('id');
+      if (error) { alert('Error creating event: ' + error.message); setSubmitting(false); return; }
+      if (insertData && insertData[0]) {
+        fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/notify-targeted-students`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+          },
+          body: JSON.stringify({ event_id: insertData[0].id }),
+        }).catch(() => {});
+      }
     }
     setSubmitting(false);
     resetForm();
@@ -100,6 +145,8 @@ export default function Events() {
       end_time: evt.end_time,
       location: evt.location,
       organizer: evt.organizer,
+      target_branches: evt.target_branches || [],
+      target_years: evt.target_years || [],
     });
     setEditingId(evt.id);
     setShowForm(true);
@@ -195,6 +242,52 @@ export default function Events() {
               <input type="text" value={form.organizer} onChange={(e) => setForm({ ...form, organizer: e.target.value })}
                 className="w-full px-3 py-2 rounded-lg border border-slate-300 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 outline-none" />
             </div>
+            <div className="sm:col-span-2">
+              <div className="flex items-center gap-1.5 mb-1">
+                <Target className="w-4 h-4 text-teal-600" />
+                <label className="block text-sm font-medium text-slate-700">Target Branches (for notifications)</label>
+              </div>
+              <p className="text-xs text-slate-400 mb-2">Select branches to notify. Leave empty to notify all students. Event remains visible to everyone regardless.</p>
+              <div className="flex flex-wrap gap-2">
+                {BRANCHES.map((b) => (
+                  <button
+                    key={b}
+                    type="button"
+                    onClick={() => toggleBranch(b)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${
+                      form.target_branches.includes(b)
+                        ? 'bg-teal-600 text-white border-teal-600'
+                        : 'bg-white text-slate-600 border-slate-300 hover:border-teal-400'
+                    }`}
+                  >
+                    {b}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="sm:col-span-2">
+              <div className="flex items-center gap-1.5 mb-1">
+                <Target className="w-4 h-4 text-teal-600" />
+                <label className="block text-sm font-medium text-slate-700">Target Years (for notifications)</label>
+              </div>
+              <p className="text-xs text-slate-400 mb-2">Select years to notify. Leave empty to notify all students. Event remains visible to everyone regardless.</p>
+              <div className="flex flex-wrap gap-2">
+                {YEARS.map((y) => (
+                  <button
+                    key={y}
+                    type="button"
+                    onClick={() => toggleYear(y)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${
+                      form.target_years.includes(y)
+                        ? 'bg-teal-600 text-white border-teal-600'
+                        : 'bg-white text-slate-600 border-slate-300 hover:border-teal-400'
+                    }`}
+                  >
+                    {y}
+                  </button>
+                ))}
+              </div>
+            </div>
             <div className="sm:col-span-2 flex gap-3">
               <button type="submit" disabled={submitting}
                 className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-teal-600 text-white font-medium hover:bg-teal-700 transition-colors disabled:opacity-50">
@@ -244,6 +337,9 @@ export default function Events() {
                   )}
                 </div>
                 {evt.description && <p className="text-sm text-slate-500 mb-3">{evt.description}</p>}
+                <div className="mb-3">
+                  <TargetAudienceBadge branches={evt.target_branches} years={evt.target_years} />
+                </div>
                 <div className="space-y-1.5 text-xs text-slate-500">
                   <p className="flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5" /> {formatDate(evt.date)}</p>
                   <p className="flex items-center gap-1.5"><Clock className="w-3.5 h-3.5" /> {formatTime12(evt.start_time)} – {formatTime12(evt.end_time)}</p>

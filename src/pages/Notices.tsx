@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { supabase, type Notice } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
 import { formatDate } from '@/lib/clashDetection';
+import TargetAudienceBadge from '@/components/TargetAudienceBadge';
 import { Plus, Trash2, Loader2, Bell, Pencil, X, FileText, AlertCircle, CheckCircle2, Building, Calendar, Target } from 'lucide-react';
 
 const BRANCHES = [
@@ -328,6 +329,9 @@ export default function Notices() {
                     </span>
                   </div>
                   <p className="text-sm text-slate-600 leading-relaxed">{notice.description}</p>
+                  <div className="mt-3 mb-3">
+                    <TargetAudienceBadge branches={notice.target_branches} years={notice.target_years} />
+                  </div>
                   <div className="flex flex-wrap gap-4 mt-3 text-xs text-slate-500">
                     <span className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5" /> {formatDate(notice.date)}</span>
                     {notice.deadline && (

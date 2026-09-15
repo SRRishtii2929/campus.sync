@@ -4,6 +4,7 @@ import { useAuth } from '@/context/AuthContext';
 import { supabase, type ClassEntry, type EventEntry, type Notice, type Announcement, type CrUpdate } from '@/lib/supabase';
 import { detectClashes, formatDate, formatTime12 } from '@/lib/clashDetection';
 import ClashBadge from '@/components/ClashBadge';
+import TargetAudienceBadge from '@/components/TargetAudienceBadge';
 import { Calendar, Bell, Megaphone, Users, AlertTriangle, ArrowRight, Clock, MapPin, Plus, Loader2, X, CheckCircle2, AlertCircle, GraduationCap, FileText } from 'lucide-react';
 
 const UPDATE_TYPES = [
@@ -298,7 +299,10 @@ export default function Dashboard() {
                       <p className="text-sm font-semibold text-slate-800">{u.subject}</p>
                     </div>
                     <p className="text-xs text-slate-600">{u.description}</p>
-                    <div className="flex flex-wrap gap-3 mt-1 text-xs text-slate-500">
+                    <div className="mt-2">
+                      <TargetAudienceBadge branch={u.branch} year={u.year} section={u.section} />
+                    </div>
+                    <div className="flex flex-wrap gap-3 mt-2 text-xs text-slate-500">
                       <span className="flex items-center gap-1"><Calendar className="w-3 h-3" /> {formatDate(u.date)}</span>
                       <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> {formatTime12(u.start_time)}{u.end_time ? ` – ${formatTime12(u.end_time)}` : ''}</span>
                       {u.location && <span className="flex items-center gap-1"><MapPin className="w-3 h-3" /> {u.location}</span>}
@@ -385,6 +389,9 @@ export default function Dashboard() {
                       <p className="text-xs text-slate-500 flex items-center gap-1">
                         <MapPin className="w-3 h-3" /> {evt.location}
                       </p>
+                      <div className="mt-1.5">
+                        <TargetAudienceBadge branches={evt.target_branches} years={evt.target_years} variant="compact" />
+                      </div>
                     </div>
                     {clashExists && <AlertTriangle className="w-5 h-5 text-red-500" />}
                   </div>
@@ -412,6 +419,9 @@ export default function Dashboard() {
                 <div key={notice.id} className="p-3 rounded-xl border border-slate-200 bg-amber-50/50">
                   <p className="text-sm font-medium text-slate-800">{notice.title}</p>
                   <p className="text-xs text-slate-500 mt-0.5">{notice.department} · {formatDate(notice.date)}</p>
+                  <div className="mt-1.5">
+                    <TargetAudienceBadge branches={notice.target_branches} years={notice.target_years} variant="compact" />
+                  </div>
                 </div>
               ))}
             </div>
@@ -441,6 +451,9 @@ export default function Dashboard() {
                       {clashExists && <AlertTriangle className="w-4 h-4 text-red-500" />}
                     </div>
                     <p className="text-xs text-slate-500 mt-0.5">{ann.society_name} · {formatDate(ann.date)}</p>
+                    <div className="mt-1.5">
+                      <TargetAudienceBadge branches={ann.target_branches} years={ann.target_years} variant="compact" />
+                    </div>
                   </div>
                 );
               })}

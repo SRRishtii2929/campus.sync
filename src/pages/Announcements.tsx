@@ -3,6 +3,7 @@ import { supabase, type Announcement, type ClassEntry, type EventEntry } from '@
 import { useAuth } from '@/context/AuthContext';
 import { detectClashes, formatDate } from '@/lib/clashDetection';
 import ClashBadge from '@/components/ClashBadge';
+import TargetAudienceBadge from '@/components/TargetAudienceBadge';
 import { Plus, Trash2, Loader2, Megaphone, Pencil, X, AlertCircle, CheckCircle2, Calendar, Clock, MapPin, AlertTriangle, Target, Clock4 } from 'lucide-react';
 
 const BRANCHES = [
@@ -379,6 +380,9 @@ export default function Announcements() {
                     </span>
                   </div>
                   <p className="text-sm text-slate-600 leading-relaxed">{ann.content}</p>
+                  <div className="mt-3 mb-3">
+                    <TargetAudienceBadge branches={ann.target_branches} years={ann.target_years} />
+                  </div>
                   <div className="flex flex-wrap gap-x-4 gap-y-1 mt-3 text-xs text-slate-500">
                     <span className="flex items-center gap-1">
                       <Calendar className="w-3.5 h-3.5" /> {formatDate(ann.date)}

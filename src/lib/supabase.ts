@@ -56,6 +56,8 @@ export interface EventEntry {
   end_time: string;
   location: string;
   organizer: string;
+  target_branches: string[] | null;
+  target_years: string[] | null;
   created_by: string | null;
   created_at: string;
 }
@@ -80,6 +82,7 @@ export interface Notification {
   notice_id: string | null;
   announcement_id: string | null;
   cr_update_id: string | null;
+  event_id: string | null;
   title: string;
   description: string;
   read: boolean;
