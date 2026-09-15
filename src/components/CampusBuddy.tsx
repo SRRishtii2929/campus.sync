@@ -95,7 +95,7 @@ export default function CampusBuddy() {
                 <Sparkles className="w-5 h-5" />
               </div>
               <div>
-                <p className="font-semibold text-sm">Campus Buddy \u{1F63B}</p>
+                <p className="font-semibold text-sm">Campus Buddy 😻</p>
                 <p className="text-xs text-teal-100">Your CampusSync guide</p>
               </div>
             </div>
