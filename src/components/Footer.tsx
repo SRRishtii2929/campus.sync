@@ -30,7 +30,7 @@ export default function Footer() {
           <div>
             <h3 className="text-sm font-semibold text-white mb-4">About</h3>
             <p className="text-sm text-slate-400">
-              A college website made by 4 first year students from Mathematics and Computing to make college life simple for all.
+              A student-focused platform built by four first-year MAC students to simplify campus life by bringing important college and society updates together in one place.
             </p>
           </div>
         </div>

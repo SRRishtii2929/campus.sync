@@ -60,7 +60,7 @@ export default function Register() {
 
     setLoading(true);
     const effectiveFullName = role === 'society_admin' ? societyName.trim() : fullName;
-    const effectiveDepartment = role === 'society_admin' ? 'Society' : (department || 'General');
+    const effectiveDepartment = role === 'society_admin' ? 'Society' : (role === 'student' ? (department || 'General') : 'General');
     const { error } = await signUp(
       email, password, effectiveFullName, role, effectiveDepartment,
       role === 'student' ? branch : undefined,
@@ -162,7 +162,7 @@ export default function Register() {
               </div>
               <p className="text-xs text-slate-400 mt-1">Minimum 6 characters. Choose any password you like.</p>
             </div>
-            {role !== 'society_admin' && (
+            {role === 'student' && (
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1.5">Department</label>
                 <div className="relative">

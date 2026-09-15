@@ -393,7 +393,6 @@ export default function AdminPanel() {
               <li>• Create, edit, and delete college events</li>
               <li>• Approve or reject Society Admin and CR requests</li>
               <li>• Manage and permanently delete student and society admin accounts</li>
-              <li>• View all student timetables for reference</li>
               <li>• Notices are visible to all students and society administrators</li>
             </ul>
           </div>

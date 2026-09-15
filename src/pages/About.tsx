@@ -18,7 +18,7 @@ export default function About() {
       <div className="bg-white rounded-2xl border border-slate-200 p-8 sm:p-12 shadow-sm mb-8">
         <h2 className="text-2xl font-bold text-slate-800 mb-6">Our Story</h2>
         <p className="text-lg text-slate-600 leading-relaxed">
-          A college website made by 4 first year students from Mathematics and Computing to make the college life simple for all
+          CampusSync was born from a simple first-year experience: important updates were scattered across WhatsApp groups, college notices, emails, and society messages. As four first-year MAC students, we wanted to build a simpler way to stay updated — without having to search through endless messages.
         </p>
       </div>
 

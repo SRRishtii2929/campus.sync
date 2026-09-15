@@ -6,3 +6,6 @@ verify_jwt = true
 
 [functions.delete-user]
 verify_jwt = true
+
+[functions.recover-deleted-account]
+verify_jwt = false

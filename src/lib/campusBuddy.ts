@@ -33,7 +33,7 @@ const COMMON_QUESTIONS = [
   { label: 'New Here?', keywords: ['new here', 'new', 'start', 'getting started', 'help', 'what is'] },
 ] as const;
 
-function matchKeywords(query: string, keywords: string[]): boolean {
+function matchKeywords(query: string, keywords: readonly string[]): boolean {
   const lower = query.toLowerCase();
   return keywords.some((kw) => lower.includes(kw));
 }
