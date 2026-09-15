@@ -1,8 +1,9 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
-import { getBuddyResponse, COMMON_QUESTIONS, WELCOME_TEXT, WELCOME_LINKS, type BuddyResponse } from '@/lib/campusBuddy';
-import { MessageCircle, X, Send, Sparkles, ArrowRight } from 'lucide-react';
+import { supabase, type ChatbotHistoryEntry } from '@/lib/supabase';
+import { getBuddyResponse, COMMON_QUESTIONS, type BuddyResponse } from '@/lib/campusBuddy';
+import { X, Send, Sparkles, ArrowRight, Trash2 } from 'lucide-react';
 
 interface ChatMessage {
   role: 'user' | 'buddy';
@@ -10,6 +11,11 @@ interface ChatMessage {
   action?: { path: string; highlight: string; label: string };
   quickLinks?: { label: string; path: string; highlight: string }[];
 }
+
+const GREETING: ChatMessage = {
+  role: 'buddy',
+  text: `Hi! I'm Campus Buddy \u{1F63B} \u2014 your guide to CampusSync. Ask me anything or click a question below to get started!`,
+};
 
 function navigateWithHighlight(navigate: ReturnType<typeof useNavigate>, path: string, highlight: string) {
   navigate(`${path}?highlight=${highlight}`);
@@ -24,18 +30,40 @@ function navigateWithHighlight(navigate: ReturnType<typeof useNavigate>, path: s
 }
 
 export default function CampusBuddy() {
-  const { profile } = useAuth();
+  const { profile, session } = useAuth();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState('');
   const [thinking, setThinking] = useState(false);
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      role: 'buddy',
-      text: `Hi! I\u2019m Campus Buddy \u{1F63B} \u2014 your guide to CampusSync. Ask me anything or click a question below to get started!`,
-    },
-  ]);
+  const [messages, setMessages] = useState<ChatMessage[]>([GREETING]);
+  const [historyLoaded, setHistoryLoaded] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const loadHistory = useCallback(async () => {
+    if (!session?.user?.id) { setHistoryLoaded(true); return; }
+    const { data } = await supabase
+      .from('chatbot_history')
+      .select('*')
+      .order('created_at', { ascending: true })
+      .limit(100);
+    if (data && data.length > 0) {
+      const restored: ChatMessage[] = (data as ChatbotHistoryEntry[]).map((row) => {
+        const msg: ChatMessage = { role: row.role, text: row.text };
+        if (row.action_path && row.action_highlight && row.action_label) {
+          msg.action = { path: row.action_path, highlight: row.action_highlight, label: row.action_label };
+        }
+        return msg;
+      });
+      setMessages([...restored, GREETING]);
+    }
+    setHistoryLoaded(true);
+  }, [session?.user?.id]);
+
+  useEffect(() => {
+    if (open && !historyLoaded) {
+      loadHistory();
+    }
+  }, [open, historyLoaded, loadHistory]);
 
   useEffect(() => {
     if (messagesEndRef.current) {
@@ -43,12 +71,25 @@ export default function CampusBuddy() {
     }
   }, [messages, thinking]);
 
+  async function saveMessage(msg: ChatMessage) {
+    if (!session?.user?.id) return;
+    await supabase.from('chatbot_history').insert({
+      user_id: session.user.id,
+      role: msg.role,
+      text: msg.text,
+      action_path: msg.action?.path || null,
+      action_highlight: msg.action?.highlight || null,
+      action_label: msg.action?.label || null,
+    });
+  }
+
   async function handleSend(query: string) {
     if (!query.trim()) return;
     const userMsg: ChatMessage = { role: 'user', text: query };
     setMessages((prev) => [...prev, userMsg]);
     setInput('');
     setThinking(true);
+    saveMessage(userMsg);
 
     const response: BuddyResponse = await getBuddyResponse(query, profile);
     setThinking(false);
@@ -60,6 +101,7 @@ export default function CampusBuddy() {
       quickLinks: response.quickLinks,
     };
     setMessages((prev) => [...prev, buddyMsg]);
+    saveMessage(buddyMsg);
   }
 
   function handleCommonQuestion(label: string) {
@@ -68,6 +110,12 @@ export default function CampusBuddy() {
 
   function handleAction(action: { path: string; highlight: string }) {
     navigateWithHighlight(navigate, action.path, action.highlight);
+  }
+
+  async function handleClearHistory() {
+    if (!session?.user?.id) return;
+    await supabase.from('chatbot_history').delete().eq('user_id', session.user.id);
+    setMessages([GREETING]);
   }
 
   return (
@@ -99,9 +147,16 @@ export default function CampusBuddy() {
                 <p className="text-xs text-teal-100">Your CampusSync guide</p>
               </div>
             </div>
-            <button onClick={() => setOpen(false)} className="p-1.5 rounded-lg hover:bg-white/20 transition-colors">
-              <X className="w-5 h-5" />
-            </button>
+            <div className="flex items-center gap-1">
+              {messages.length > 1 && (
+                <button onClick={handleClearHistory} className="p-1.5 rounded-lg hover:bg-white/20 transition-colors" title="Clear chat history">
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              )}
+              <button onClick={() => setOpen(false)} className="p-1.5 rounded-lg hover:bg-white/20 transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
           </div>
 
           {/* Messages */}

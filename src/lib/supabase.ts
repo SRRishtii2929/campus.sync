@@ -89,6 +89,17 @@ export interface Notification {
   created_at: string;
 }
 
+export interface ChatbotHistoryEntry {
+  id: string;
+  user_id: string;
+  role: 'user' | 'buddy';
+  text: string;
+  action_path: string | null;
+  action_highlight: string | null;
+  action_label: string | null;
+  created_at: string;
+}
+
 export interface Announcement {
   id: string;
   title: string;
