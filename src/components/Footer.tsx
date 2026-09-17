@@ -6,9 +6,8 @@ export default function Footer() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           <div>
-            <div className="flex items-center gap-2 mb-4">
-              <img src="/image.png" alt="Campus Sync" className="w-10 h-10 rounded-xl object-cover" />
-              <span className="text-xl font-bold text-white">Campus Sync</span>
+            <div className="flex items-center mb-4">
+              <img src="/image.png" alt="Campus Sync" className="w-44 h-16 object-contain" />
             </div>
             <p className="text-sm text-slate-400 leading-relaxed">
               Simplifying college life through smart scheduling, clash detection, and seamless communication.
