@@ -111,11 +111,12 @@ export default function Dashboard() {
       return;
     }
     if (insertData && insertData[0]) {
+      const { data: sessionData } = await supabase.auth.getSession();
       fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/notify-cr-update`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+          Authorization: `Bearer ${sessionData.session?.access_token}`,
         },
         body: JSON.stringify({ cr_update_id: insertData[0].id }),
       }).catch(() => {});
