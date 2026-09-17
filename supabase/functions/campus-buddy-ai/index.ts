@@ -20,6 +20,7 @@ interface Profile {
   branch: string | null;
   year: string | null;
   section: string | null;
+  society_name: string | null;
 }
 
 interface HistoryMessage {
@@ -260,7 +261,10 @@ function detectClashes(
 
 const SYSTEM_PROMPT = `You are Campus Buddy, a friendly and helpful AI assistant for CampusSync — a college campus information platform.
 
-Your job is to answer students' questions about campus information using ONLY the real-time data provided to you in the context below. You are grounded in this data — do not make up information that isn't in the context.
+Your job is to answer users' questions about campus information using ONLY the real-time data provided to you in the context below. You are grounded in this data — do not make up information that isn't in the context.
+
+## Role Awareness
+The context provided to you is personalized based on the authenticated user's role (Student, Society Admin, or College Admin). The data you receive is what that role is entitled to see. Do NOT reference or suggest data types that are not present in the context. For example, if no timetable or class information is provided, do not mention classes or suggest checking a personal timetable. Answer based only on the sections actually included in the context.
 
 ## CampusSync Sections
 The platform has these sections, each with a navigation path and highlight anchor:
@@ -355,36 +359,97 @@ Deno.serve(async (req: Request) => {
 
     const today = new Date().toISOString().split("T")[0];
     const todayName = new Date().toLocaleDateString("en-US", { weekday: "long" });
+    const userRole = (profile?.role || "student").toLowerCase();
+    const isStudent = userRole === "student";
+    const isSocietyAdmin = userRole === "society_admin";
+    const isCollegeAdmin = userRole === "college_admin";
 
-    const [noticesRes, announcementsRes, eventsRes, crUpdatesRes, classesRes, notificationsRes, allEventsRes, allAnnouncementsRes, allClassesRes] = await Promise.all([
+    // Common queries for all roles
+    const commonQueries = [
       supabaseAdmin.from("notices").select("title, description, date, department, deadline").order("date", { ascending: false }).limit(5),
-      supabaseAdmin.from("announcements").select("title, content, society_name, date, event_date, event_time, registration_deadline, event_location").order("date", { ascending: false }).limit(5),
       supabaseAdmin.from("events").select("title, description, date, start_time, end_time, location, organizer").gte("date", today).order("date").limit(5),
-      profile?.branch && profile?.year && profile?.section
-        ? supabaseAdmin.from("cr_updates").select("*").eq("branch", profile.branch).eq("year", profile.year).eq("section", profile.section).order("date", { ascending: false }).limit(5)
-        : supabaseAdmin.from("cr_updates").select("*").order("date", { ascending: false }).limit(5),
-      supabaseAdmin.from("classes").select("subject, day_of_week, start_time, end_time, room").eq("user_id", userId).order("start_time"),
-      supabaseAdmin.from("notifications").select("title, description, read, created_at").eq("user_id", userId).order("created_at", { ascending: false }).limit(5),
       supabaseAdmin.from("events").select("id, title, description, date, start_time, end_time, location, organizer").order("date"),
-      supabaseAdmin.from("announcements").select("id, title, content, society_name, date, event_date, event_time, registration_deadline, event_location").order("date", { ascending: false }),
-      supabaseAdmin.from("classes").select("id, subject, day_of_week, date, start_time, end_time, room").eq("user_id", userId).order("start_time"),
-    ]);
+    ];
 
-    const allEvents: ServerEventEntry[] = (allEventsRes.data as ServerEventEntry[]) || [];
-    const allAnnouncements: ServerAnnouncement[] = (allAnnouncementsRes.data as ServerAnnouncement[]) || [];
-    const allClasses: ServerClassEntry[] = (allClassesRes.data as ServerClassEntry[]) || [];
-    const detectedClashes = detectClashes(allClasses, allEvents, allAnnouncements);
+    // Announcements: all roles see announcements, but society admin sees their own society's prominently
+    let announcementQuery = supabaseAdmin.from("announcements").select("title, content, society_name, date, event_date, event_time, registration_deadline, event_location").order("date", { ascending: false }).limit(5);
+    if (isSocietyAdmin && profile?.society_name) {
+      announcementQuery = supabaseAdmin.from("announcements").select("title, content, society_name, date, event_date, event_time, registration_deadline, event_location").eq("society_name", profile.society_name).order("date", { ascending: false }).limit(5);
+    }
+    commonQueries.push(announcementQuery);
+
+    // All announcements for clash detection (students only need this)
+    if (isStudent) {
+      commonQueries.push(
+        supabaseAdmin.from("announcements").select("id, title, content, society_name, date, event_date, event_time, registration_deadline, event_location").order("date", { ascending: false })
+      );
+      commonQueries.push(
+        supabaseAdmin.from("classes").select("id, subject, day_of_week, date, start_time, end_time, room").eq("user_id", userId).order("start_time")
+      );
+    }
+
+    const results = await Promise.all(commonQueries);
+    const noticesRes = results[0];
+    const eventsRes = results[1];
+    const allEventsRes = results[2];
+    const announcementsRes = results[3];
+
+    // Student-specific data
+    let crUpdatesRes: { data: any[] | null } = { data: null };
+    let classesRes: { data: any[] | null } = { data: null };
+    let notificationsRes: { data: any[] | null } = { data: null };
+    let allAnnouncementsRes: { data: any[] | null } = { data: null };
+    let allClassesRes: { data: any[] | null } = { data: null };
+    let detectedClashes: ClashDetail[] = [];
+
+    if (isStudent) {
+      allAnnouncementsRes = results[4];
+      allClassesRes = results[5];
+
+      const studentQueries = await Promise.all([
+        profile?.branch && profile?.year && profile?.section
+          ? supabaseAdmin.from("cr_updates").select("*").eq("branch", profile.branch).eq("year", profile.year).eq("section", profile.section).order("date", { ascending: false }).limit(5)
+          : supabaseAdmin.from("cr_updates").select("*").order("date", { ascending: false }).limit(5),
+        supabaseAdmin.from("classes").select("subject, day_of_week, start_time, end_time, room").eq("user_id", userId).order("start_time"),
+        supabaseAdmin.from("notifications").select("title, description, read, created_at").eq("user_id", userId).order("created_at", { ascending: false }).limit(5),
+      ]);
+      crUpdatesRes = studentQueries[0];
+      classesRes = studentQueries[1];
+      notificationsRes = studentQueries[2];
+
+      const allEvents: ServerEventEntry[] = (allEventsRes.data as ServerEventEntry[]) || [];
+      const allAnnouncements: ServerAnnouncement[] = (allAnnouncementsRes.data as ServerAnnouncement[]) || [];
+      const allClasses: ServerClassEntry[] = (allClassesRes.data as ServerClassEntry[]) || [];
+      detectedClashes = detectClashes(allClasses, allEvents, allAnnouncements);
+    }
 
     const contextParts: string[] = [];
 
-    contextParts.push(`## Student Profile
+    // Role-specific profile context
+    if (isStudent) {
+      contextParts.push(`## Student Profile
 - Name: ${profile?.full_name || "Unknown"}
 - Department: ${profile?.department || "General"}
 - Branch: ${profile?.branch || "Not set"}
 - Year: ${profile?.year || "Not set"}
 - Section: ${profile?.section || "Not set"}
 - Today: ${todayName}, ${today}`);
+    } else if (isSocietyAdmin) {
+      contextParts.push(`## Society Admin Profile
+- Name: ${profile?.full_name || "Unknown"}
+- Role: Society Admin
+- Society: ${profile?.society_name || "Not set"}
+- Department: ${profile?.department || "General"}
+- Today: ${todayName}, ${today}`);
+    } else if (isCollegeAdmin) {
+      contextParts.push(`## College Admin Profile
+- Name: ${profile?.full_name || "Unknown"}
+- Role: College Admin
+- Department: ${profile?.department || "General"}
+- Today: ${todayName}, ${today}`);
+    }
 
+    // Notices — all roles
     if (noticesRes.data && noticesRes.data.length > 0) {
       const noticeText = noticesRes.data.map((n: any) =>
         `- ${n.title} | Dept: ${n.department} | Date: ${n.date}${n.deadline ? ` | Deadline: ${n.deadline}` : ""} | ${n.description}`
@@ -394,15 +459,19 @@ Deno.serve(async (req: Request) => {
       contextParts.push("## Latest Notices\nNo notices found.");
     }
 
+    // Announcements — all roles (filtered for society admin)
     if (announcementsRes.data && announcementsRes.data.length > 0) {
       const annText = announcementsRes.data.map((a: any) =>
         `- ${a.title} by ${a.society_name} | Date: ${a.date}${a.event_date ? ` | Event Date: ${a.event_date}` : ""}${a.event_time ? ` at ${a.event_time}` : ""}${a.event_location ? ` | Location: ${a.event_location}` : ""}${a.registration_deadline ? ` | Registration Deadline: ${a.registration_deadline}` : ""} | ${a.content}`
       ).join("\n");
-      contextParts.push(`## Latest Society Announcements\n${annText}`);
+      const sectionTitle = isSocietyAdmin ? `## Latest Announcements (for ${profile?.society_name || "your society"})` : "## Latest Society Announcements";
+      contextParts.push(`${sectionTitle}\n${annText}`);
     } else {
-      contextParts.push("## Latest Society Announcements\nNo announcements found.");
+      const sectionTitle = isSocietyAdmin ? `## Latest Announcements (for ${profile?.society_name || "your society"})` : "## Latest Society Announcements";
+      contextParts.push(`${sectionTitle}\nNo announcements found.`);
     }
 
+    // Events — all roles
     if (eventsRes.data && eventsRes.data.length > 0) {
       const eventText = eventsRes.data.map((e: any) =>
         `- ${e.title} on ${e.date} from ${e.start_time} to ${e.end_time} at ${e.location} | Organizer: ${e.organizer} | ${e.description}`
@@ -412,46 +481,49 @@ Deno.serve(async (req: Request) => {
       contextParts.push("## Upcoming Events\nNo upcoming events found.");
     }
 
-    if (crUpdatesRes.data && crUpdatesRes.data.length > 0) {
-      const crText = crUpdatesRes.data.map((u: any) =>
-        `- ${u.update_type} for ${u.subject} on ${u.date} from ${u.start_time}${u.end_time ? ` to ${u.end_time}` : ""}${u.location ? ` at ${u.location}` : ""} | ${u.description}`
-      ).join("\n");
-      contextParts.push(`## Class Representative Updates (for ${profile?.branch || "your"} ${profile?.year || ""} ${profile?.section ? `Section ${profile.section}` : ""})\n${crText}`);
-    } else {
-      contextParts.push("## Class Representative Updates\nNo CR updates found for your section.");
-    }
-
-    if (classesRes.data && classesRes.data.length > 0) {
-      const todayClasses = classesRes.data.filter((c: any) => c.day_of_week === todayName);
-      if (todayClasses.length > 0) {
-        const classText = todayClasses.map((c: any) => `- ${c.subject} from ${c.start_time} to ${c.end_time} in Room ${c.room}`).join("\n");
-        contextParts.push(`## Today's Classes (${todayName})\n${classText}`);
+    // Student-only sections: CR updates, timetable, notifications, clashes
+    if (isStudent) {
+      if (crUpdatesRes.data && crUpdatesRes.data.length > 0) {
+        const crText = crUpdatesRes.data.map((u: any) =>
+          `- ${u.update_type} for ${u.subject} on ${u.date} from ${u.start_time}${u.end_time ? ` to ${u.end_time}` : ""}${u.location ? ` at ${u.location}` : ""} | ${u.description}`
+        ).join("\n");
+        contextParts.push(`## Class Representative Updates (for ${profile?.branch || "your"} ${profile?.year || ""} ${profile?.section ? `Section ${profile.section}` : ""})\n${crText}`);
       } else {
-        contextParts.push(`## Today's Classes (${todayName})\nNo classes scheduled for today.`);
+        contextParts.push("## Class Representative Updates\nNo CR updates found for your section.");
       }
-      const allClasses = classesRes.data.map((c: any) => `- ${c.day_of_week}: ${c.subject} from ${c.start_time} to ${c.end_time} in Room ${c.room}`).join("\n");
-      contextParts.push(`## Full Weekly Timetable\n${allClasses}`);
-    } else {
-      contextParts.push("## Timetable\nNo classes found in the timetable.");
-    }
 
-    if (notificationsRes.data && notificationsRes.data.length > 0) {
-      const unread = notificationsRes.data.filter((n: any) => !n.read).length;
-      const notifText = notificationsRes.data.map((n: any) =>
-        `- ${n.title} | ${n.read ? "Read" : "Unread"} | ${n.description}`
-      ).join("\n");
-      contextParts.push(`## Recent Notifications (${unread} unread)\n${notifText}`);
-    } else {
-      contextParts.push("## Recent Notifications\nNo notifications found.");
-    }
+      if (classesRes.data && classesRes.data.length > 0) {
+        const todayClasses = classesRes.data.filter((c: any) => c.day_of_week === todayName);
+        if (todayClasses.length > 0) {
+          const classText = todayClasses.map((c: any) => `- ${c.subject} from ${c.start_time} to ${c.end_time} in Room ${c.room}`).join("\n");
+          contextParts.push(`## Today's Classes (${todayName})\n${classText}`);
+        } else {
+          contextParts.push(`## Today's Classes (${todayName})\nNo classes scheduled for today.`);
+        }
+        const allClassesText = classesRes.data.map((c: any) => `- ${c.day_of_week}: ${c.subject} from ${c.start_time} to ${c.end_time} in Room ${c.room}`).join("\n");
+        contextParts.push(`## Full Weekly Timetable\n${allClassesText}`);
+      } else {
+        contextParts.push("## Timetable\nNo classes found in the timetable.");
+      }
 
-    if (detectedClashes.length > 0) {
-      const clashText = detectedClashes.map((c) =>
-        `- ${c.message}\n  Item A: ${c.activityA.label} | Date: ${c.activityA.date} | Time: ${c.activityA.start} to ${c.activityA.end}\n  Item B: ${c.activityB.label} | Date: ${c.activityB.date} | Time: ${c.activityB.start} to ${c.activityB.end}\n  Calculated Overlap: ${c.overlapStart} to ${c.overlapEnd}`
-      ).join("\n");
-      contextParts.push(`## EXISTING DETECTED SCHEDULE CLASHES\n${clashText}`);
-    } else {
-      contextParts.push("## EXISTING DETECTED SCHEDULE CLASHES\nNo schedule clashes detected.");
+      if (notificationsRes.data && notificationsRes.data.length > 0) {
+        const unread = notificationsRes.data.filter((n: any) => !n.read).length;
+        const notifText = notificationsRes.data.map((n: any) =>
+          `- ${n.title} | ${n.read ? "Read" : "Unread"} | ${n.description}`
+        ).join("\n");
+        contextParts.push(`## Recent Notifications (${unread} unread)\n${notifText}`);
+      } else {
+        contextParts.push("## Recent Notifications\nNo notifications found.");
+      }
+
+      if (detectedClashes.length > 0) {
+        const clashText = detectedClashes.map((c) =>
+          `- ${c.message}\n  Item A: ${c.activityA.label} | Date: ${c.activityA.date} | Time: ${c.activityA.start} to ${c.activityA.end}\n  Item B: ${c.activityB.label} | Date: ${c.activityB.date} | Time: ${c.activityB.start} to ${c.activityB.end}\n  Calculated Overlap: ${c.overlapStart} to ${c.overlapEnd}`
+        ).join("\n");
+        contextParts.push(`## EXISTING DETECTED SCHEDULE CLASHES\n${clashText}`);
+      } else {
+        contextParts.push("## EXISTING DETECTED SCHEDULE CLASHES\nNo schedule clashes detected.");
+      }
     }
 
     const contextBlock = contextParts.join("\n\n");
@@ -467,7 +539,7 @@ Deno.serve(async (req: Request) => {
 
     contents.push({
       role: "user",
-      parts: [{ text: `## Campus Data (Real-Time)\n${contextBlock}\n\n## Student Question\n${query}` }],
+      parts: [{ text: `## Campus Data (Real-Time)\n${contextBlock}\n\n## User Question\n${query}` }],
     });
 
     const geminiBody = {
