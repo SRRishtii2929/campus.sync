@@ -5,9 +5,7 @@ export default function About() {
     <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
       <div className="text-center mb-12">
         <div className="inline-flex items-center gap-2 mb-6">
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-teal-500 to-cyan-600 flex items-center justify-center shadow-lg">
-            <GraduationCap className="w-9 h-9 text-white" />
-          </div>
+          <img src="/image.png" alt="Campus Sync" className="w-16 h-16 rounded-2xl object-cover shadow-lg" />
         </div>
         <h1 className="text-4xl font-bold text-slate-800 mb-3">About Campus Sync</h1>
         <p className="text-lg text-slate-500 max-w-2xl mx-auto">

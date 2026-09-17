@@ -1,4 +1,3 @@
-import { GraduationCap } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 export default function Footer() {
@@ -8,9 +7,7 @@ export default function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           <div>
             <div className="flex items-center gap-2 mb-4">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-teal-500 to-cyan-600 flex items-center justify-center">
-                <GraduationCap className="w-6 h-6 text-white" />
-              </div>
+              <img src="/image.png" alt="Campus Sync" className="w-10 h-10 rounded-xl object-cover" />
               <span className="text-xl font-bold text-white">Campus Sync</span>
             </div>
             <p className="text-sm text-slate-400 leading-relaxed">

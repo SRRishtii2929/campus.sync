@@ -81,9 +81,7 @@ export default function Navbar() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           <Link to="/" className="flex items-center gap-2 group">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-teal-500 to-cyan-600 flex items-center justify-center shadow-md group-hover:shadow-lg transition-shadow">
-              <GraduationCap className="w-6 h-6 text-white" />
-            </div>
+            <img src="/image.png" alt="Campus Sync" className="w-10 h-10 rounded-xl object-cover shadow-md group-hover:shadow-lg transition-shadow" />
             <span className="text-xl font-bold text-slate-800 tracking-tight">Campus Sync</span>
           </Link>
 

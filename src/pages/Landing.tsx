@@ -53,8 +53,8 @@ export default function Landing() {
               { icon: AlertTriangle, title: 'Clash Detection', desc: 'Automatic detection of overlapping classes and events with clear warnings.', color: 'bg-red-500' },
               { icon: Bell, title: 'College Notices', desc: 'Stay updated with official notices from college administration.', color: 'bg-amber-500' },
               { icon: Users, title: 'College Events', desc: 'Browse and track upcoming college events and activities.', color: 'bg-teal-500' },
-              { icon: Megaphone, title: 'Society Announcements', desc: 'Get the latest announcements from student societies and clubs.', color: 'bg-purple-500' },
-              { icon: GraduationCap, title: 'Role-Based Access', desc: 'Tailored dashboards for students, society admins, and college admins.', color: 'bg-indigo-500' },
+              { icon: Megaphone, title: 'Society Announcements', desc: 'Get the latest announcements from student societies and clubs.', color: 'bg-teal-500' },
+              { icon: GraduationCap, title: 'Role-Based Access', desc: 'Tailored dashboards for students, society admins, and college admins.', color: 'bg-teal-600' },
             ].map((feature) => {
               const Icon = feature.icon;
               return (

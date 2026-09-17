@@ -4,15 +4,15 @@
 
 @keyframes buddy-highlight-pulse {
   0%, 100% {
-    box-shadow: 0 0 0 0 rgba(13, 148, 136, 0);
+    box-shadow: 0 0 0 0 rgba(117, 100, 232, 0);
   }
   50% {
-    box-shadow: 0 0 0 4px rgba(13, 148, 136, 0.4);
+    box-shadow: 0 0 0 4px rgba(117, 100, 232, 0.4);
   }
 }
 
 .buddy-highlight {
   animation: buddy-highlight-pulse 1s ease-in-out 2;
-  outline: 2px solid rgb(13, 148, 136);
+  outline: 2px solid rgb(117, 100, 232);
   outline-offset: 2px;
 }
