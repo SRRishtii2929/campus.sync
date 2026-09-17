@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
-import { getBuddyResponse, COMMON_QUESTIONS, type BuddyResponse } from '@/lib/campusBuddy';
+import { getBuddyResponse, COMMON_QUESTIONS, type BuddyResponse, type HistoryMessage } from '@/lib/campusBuddy';
 import { X, Send, Sparkles, ArrowRight } from 'lucide-react';
 
 interface ChatMessage {
@@ -50,7 +50,8 @@ export default function CampusBuddy() {
     setInput('');
     setThinking(true);
 
-    const response: BuddyResponse = await getBuddyResponse(query, profile);
+    const history: HistoryMessage[] = messages.map((m) => ({ role: m.role, text: m.text }));
+    const response: BuddyResponse = await getBuddyResponse(query, profile, history);
     setThinking(false);
 
     const buddyMsg: ChatMessage = {
