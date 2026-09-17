@@ -253,11 +253,17 @@ Deno.serve(async (req: Request) => {
       );
     }
 
+    const cleanedText = generatedText
+      .trim()
+      .replace(/^```(?:json)?\s*/i, "")
+      .replace(/\s*```$/, "")
+      .trim();
+
     let parsed: { text: string; action?: { path: string; highlight: string; label: string }; quickLinks?: Array<{ label: string; path: string; highlight: string }> };
     try {
-      parsed = JSON.parse(generatedText);
+      parsed = JSON.parse(cleanedText);
     } catch {
-      parsed = { text: generatedText };
+      parsed = { text: cleanedText };
     }
 
     return new Response(JSON.stringify(parsed), {
