@@ -6,7 +6,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Client-Info, Apikey",
 };
 
-const GEMINI_MODEL = "gemini-2.0-flash";
+const GEMINI_MODEL = "gemini-3.6-flash";
 const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 
 interface Profile {
@@ -223,33 +223,6 @@ Deno.serve(async (req: Request) => {
       systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
       contents,
       generationConfig: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: "object",
-          properties: {
-            text: { type: "string" },
-            action: {
-              type: "object",
-              properties: {
-                path: { type: "string" },
-                highlight: { type: "string" },
-                label: { type: "string" },
-              },
-            },
-            quickLinks: {
-              type: "array",
-              items: {
-                type: "object",
-                properties: {
-                  label: { type: "string" },
-                  path: { type: "string" },
-                  highlight: { type: "string" },
-                },
-              },
-            },
-          },
-          required: ["text"],
-        },
         temperature: 0.7,
         maxOutputTokens: 1024,
       },
@@ -265,7 +238,7 @@ Deno.serve(async (req: Request) => {
       const errText = await geminiResponse.text();
       console.error("Gemini API error:", errText);
       return new Response(
-        JSON.stringify({ error: "The AI assistant is temporarily unavailable. Please try again." }),
+        JSON.stringify({ error: `Gemini API error (${geminiResponse.status}): ${errText.slice(0, 500)}` }),
         { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
