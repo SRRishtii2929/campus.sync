@@ -253,17 +253,19 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    const cleanedText = generatedText
-      .trim()
-      .replace(/^```(?:json)?\s*/i, "")
-      .replace(/\s*```$/, "")
-      .trim();
+    const fencedJson = generatedText.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
+    const candidateText = (fencedJson?.[1] || generatedText).trim();
+    const objectStart = candidateText.indexOf("{");
+    const objectEnd = candidateText.lastIndexOf("}");
+    const cleanedText = objectStart >= 0 && objectEnd > objectStart
+      ? candidateText.slice(objectStart, objectEnd + 1)
+      : candidateText;
 
     let parsed: { text: string; action?: { path: string; highlight: string; label: string }; quickLinks?: Array<{ label: string; path: string; highlight: string }> };
     try {
       parsed = JSON.parse(cleanedText);
     } catch {
-      parsed = { text: cleanedText };
+      parsed = { text: candidateText };
     }
 
     return new Response(JSON.stringify(parsed), {

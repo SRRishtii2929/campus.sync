@@ -42,6 +42,28 @@ const FALLBACK_RESPONSE: BuddyResponse = {
   quickLinks: WELCOME_LINKS,
 };
 
+function unwrapBuddyResponse(data: { text?: unknown; [key: string]: unknown }): { text?: unknown; [key: string]: unknown } {
+  if (typeof data.text !== 'string') return data;
+
+  const fencedJson = data.text.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
+  const candidate = (fencedJson?.[1] || data.text).trim();
+  const objectStart = candidate.indexOf('{');
+  const objectEnd = candidate.lastIndexOf('}');
+
+  if (objectStart < 0 || objectEnd <= objectStart) return data;
+
+  try {
+    const parsed: unknown = JSON.parse(candidate.slice(objectStart, objectEnd + 1));
+    if (parsed && typeof parsed === 'object' && 'text' in parsed) {
+      return { ...data, ...(parsed as Record<string, unknown>) };
+    }
+  } catch {
+    return data;
+  }
+
+  return data;
+}
+
 export async function getBuddyResponse(
   query: string,
   profile: Profile | null,
@@ -84,25 +106,26 @@ export async function getBuddyResponse(
       return FALLBACK_RESPONSE;
     }
 
-    const data = await response.json();
+    const data = unwrapBuddyResponse(await response.json());
 
     if (data.error) {
       console.error('Campus Buddy AI returned error:', data.error);
       return FALLBACK_RESPONSE;
     }
 
-    const result: BuddyResponse = { text: data.text || 'I could not generate a response. Please try again.' };
-    if (data.action && data.action.path && data.action.label) {
+    const result: BuddyResponse = { text: typeof data.text === 'string' ? data.text : 'I could not generate a response. Please try again.' };
+    if (data.action && typeof data.action === 'object' && 'path' in data.action && 'label' in data.action) {
+      const action = data.action as { path: string; highlight?: string; label: string };
       result.action = {
-        path: data.action.path,
-        highlight: data.action.highlight || '',
-        label: data.action.label,
+        path: action.path,
+        highlight: action.highlight || '',
+        label: action.label,
       };
     }
     if (Array.isArray(data.quickLinks) && data.quickLinks.length > 0) {
       result.quickLinks = data.quickLinks
-        .filter((ql: any) => ql && ql.label && ql.path)
-        .map((ql: any) => ({ label: ql.label, path: ql.path, highlight: ql.highlight || '' }));
+        .filter((ql: unknown): ql is { label: string; path: string; highlight?: string } => Boolean(ql && typeof ql === 'object' && 'label' in ql && 'path' in ql))
+        .map((ql) => ({ label: ql.label, path: ql.path, highlight: ql.highlight || '' }));
     }
     return result;
   } catch (err) {
