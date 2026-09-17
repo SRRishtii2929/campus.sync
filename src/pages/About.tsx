@@ -4,8 +4,9 @@ export default function About() {
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
       <div className="text-center mb-12">
-        <div className="inline-flex items-center gap-2 mb-6">
-          <img src="/image.png" alt="Campus Sync" className="w-56 h-28 object-contain shadow-lg rounded-2xl" />
+        <div className="inline-flex items-center gap-3 mb-6">
+          <img src="/image copy.png" alt="" className="w-16 h-16 object-contain" />
+          <img src="/image copy 2.png" alt="CampusSync — Notices · Events · Opportunities" className="w-56 h-24 object-contain" />
         </div>
         <h1 className="text-4xl font-bold text-slate-800 mb-3">About Campus Sync</h1>
         <p className="text-lg text-slate-500 max-w-2xl mx-auto">

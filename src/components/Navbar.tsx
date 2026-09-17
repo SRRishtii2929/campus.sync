@@ -80,8 +80,9 @@ export default function Navbar() {
     <nav className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-slate-200 shadow-sm">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
-          <Link to="/" className="flex items-center group" aria-label="Campus Sync home">
-            <img src="/image.png" alt="Campus Sync" className="w-40 h-14 object-contain group-hover:scale-[1.02] transition-transform" />
+          <Link to="/" className="flex items-center gap-2 group" aria-label="Campus Sync home">
+            <img src="/image copy.png" alt="" className="w-10 h-10 object-contain group-hover:scale-[1.04] transition-transform" />
+            <img src="/image copy 2.png" alt="CampusSync — Notices · Events · Opportunities" className="w-32 sm:w-36 h-12 object-contain" />
           </Link>
 
           <div className="hidden lg:flex items-center gap-1">
