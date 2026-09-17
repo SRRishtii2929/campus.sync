@@ -6,8 +6,10 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Client-Info, Apikey",
 };
 
-const GEMINI_MODEL = "gemini-3.6-flash";
+const GEMINI_MODEL = "gemini-3.1-flash-lite";
 const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
+const MAX_RETRIES = 2;
+const RETRY_BASE_DELAY_MS = 1000;
 
 interface Profile {
   id: string;
@@ -228,18 +230,37 @@ Deno.serve(async (req: Request) => {
       },
     };
 
-    const geminiResponse = await fetch(`${GEMINI_URL}?key=${geminiApiKey}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(geminiBody),
-    });
+    let geminiResponse: Response | null = null;
+    let lastErrText = "";
+    let lastErrStatus = 0;
 
-    if (!geminiResponse.ok) {
-      const errText = await geminiResponse.text();
-      console.error("Gemini API error:", errText);
+    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+      geminiResponse = await fetch(`${GEMINI_URL}?key=${geminiApiKey}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(geminiBody),
+      });
+
+      if (geminiResponse.ok) break;
+
+      lastErrText = await geminiResponse.text();
+      lastErrStatus = geminiResponse.status;
+
+      const isTransient = geminiResponse.status === 503 || geminiResponse.status === 504 || lastErrText.includes("UNAVAILABLE");
+      if (!isTransient || attempt === MAX_RETRIES) break;
+
+      console.error(`Gemini transient error (attempt ${attempt + 1}/${MAX_RETRIES + 1}), status ${geminiResponse.status}: ${lastErrText.slice(0, 200)}`);
+      await new Promise((resolve) => setTimeout(resolve, RETRY_BASE_DELAY_MS * (attempt + 1)));
+    }
+
+    if (!geminiResponse || !geminiResponse.ok) {
+      console.error(`Gemini API failed after retries, final status ${lastErrStatus}: ${lastErrText.slice(0, 500)}`);
+      const userMsg = lastErrStatus === 503 || lastErrStatus === 504
+        ? "The AI assistant is temporarily unavailable due to high demand. Please try again in a moment."
+        : "The AI assistant encountered an error. Please try again later.";
       return new Response(
-        JSON.stringify({ error: `Gemini API error (${geminiResponse.status}): ${errText.slice(0, 500)}` }),
-        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        JSON.stringify({ error: userMsg }),
+        { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
 
