@@ -4,6 +4,7 @@ import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { GraduationCap, Mail, Lock, User, Loader2, AlertCircle, Building, Users } from 'lucide-react';
 import type { UserRole, StudentType } from '@/lib/supabase';
+import LoadingScreen from '@/components/LoadingScreen';
 
 const BRANCHES = [
   'CSE', 'CSAI', 'CSE-CS', 'MAC', 'MAE', 'RAIE', 'ECE', 'ECE-AI',
@@ -29,6 +30,7 @@ export default function Register() {
   const [societyName, setSocietyName] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showLoadingScreen, setShowLoadingScreen] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -69,13 +71,17 @@ export default function Register() {
       role === 'student' ? studentType : undefined,
       role === 'society_admin' ? societyName.trim() : undefined,
     );
-    setLoading(false);
     if (error) {
+      setLoading(false);
       setError(error);
     } else {
-      navigate('/dashboard');
+      setShowLoadingScreen(true);
     }
   };
+
+  if (showLoadingScreen) {
+    return <LoadingScreen onComplete={() => navigate('/dashboard')} />;
+  }
 
   return (
     <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center px-4 py-12 bg-gradient-to-br from-slate-50 to-teal-50">

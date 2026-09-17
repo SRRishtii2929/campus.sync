@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { GraduationCap, Mail, Lock, Loader2, AlertCircle } from 'lucide-react';
+import LoadingScreen from '@/components/LoadingScreen';
 
 export default function Login() {
   const { signIn } = useAuth();
@@ -10,19 +11,24 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showLoadingScreen, setShowLoadingScreen] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);
     const { error } = await signIn(email, password);
-    setLoading(false);
     if (error) {
+      setLoading(false);
       setError(error);
     } else {
-      navigate('/dashboard');
+      setShowLoadingScreen(true);
     }
   };
+
+  if (showLoadingScreen) {
+    return <LoadingScreen onComplete={() => navigate('/dashboard')} />;
+  }
 
   return (
     <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center px-4 py-12 bg-gradient-to-br from-slate-50 to-teal-50">
