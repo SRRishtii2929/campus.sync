@@ -5,6 +5,7 @@ import { supabase, type ClassEntry, type EventEntry, type Notice, type Announcem
 import { detectClashes, formatDate, formatTime12 } from '@/lib/clashDetection';
 import ClashBadge from '@/components/ClashBadge';
 import TargetAudienceBadge from '@/components/TargetAudienceBadge';
+import InterestTags from '@/components/InterestTags';
 import { useHighlight } from '@/lib/useHighlight';
 import { Calendar, Bell, Megaphone, Users, AlertTriangle, ArrowRight, Clock, MapPin, Plus, Loader2, X, CheckCircle2, AlertCircle, GraduationCap, FileText } from 'lucide-react';
 
@@ -150,12 +151,12 @@ export default function Dashboard() {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div className="mb-8" id="notifications">
-        <h1 className="text-3xl font-bold text-slate-800">
+        <h1 className="text-3xl font-bold text-slate-800 dark:text-slate-200">
           Welcome back, {profile?.full_name}
         </h1>
-        <p className="text-slate-500 mt-1">
-          You're signed in as <span className="capitalize font-medium text-teal-600">{profile?.role?.replace('_', ' ')}</span>
-          {profile?.department && ` · ${profile.department}`}
+        <p className="text-slate-500 dark:text-slate-400 mt-1">
+          You're signed in as <span className="capitalize font-medium text-teal-600 dark:text-teal-400">{profile?.role?.replace('_', ' ')}</span>
+          {profile?.branch && ` · ${profile.branch}`}
           {profile?.branch && ` · ${profile.branch}`}
           {profile?.year && ` · ${profile.year}`}
           {profile?.section && ` · Section ${profile.section}`}
@@ -165,25 +166,25 @@ export default function Dashboard() {
       </div>
 
       {isPendingCR && (
-        <div className="mb-6 p-4 rounded-xl bg-orange-50 border border-orange-200 flex items-center gap-3">
-          <Clock className="w-5 h-5 text-orange-600 flex-shrink-0" />
+        <div className="mb-6 p-4 rounded-xl bg-orange-50 dark:bg-orange-950/40 border border-orange-200 dark:border-orange-800 flex items-center gap-3">
+          <Clock className="w-5 h-5 text-orange-600 dark:text-orange-400 flex-shrink-0" />
           <div>
-            <p className="text-sm font-medium text-orange-800">Pending CR Approval</p>
-            <p className="text-xs text-orange-600 mt-0.5">Your CR (Class Representative) account is awaiting approval from a College Admin. Posting privileges will be enabled once approved.</p>
+            <p className="text-sm font-medium text-orange-800 dark:text-orange-300">Pending CR Approval</p>
+            <p className="text-xs text-orange-600 dark:text-orange-400 mt-0.5">Your CR (Class Representative) account is awaiting approval from a College Admin. Posting privileges will be enabled once approved.</p>
           </div>
         </div>
       )}
 
       {crSuccess && (
-        <div className="mb-4 p-3 rounded-lg bg-green-50 border border-green-200 flex items-center gap-2">
-          <CheckCircle2 className="w-5 h-5 text-green-600 flex-shrink-0" />
-          <p className="text-sm text-green-700">{crSuccess}</p>
+        <div className="mb-4 p-3 rounded-lg bg-green-50 dark:bg-green-950/40 border border-green-200 dark:border-green-800 flex items-center gap-2">
+          <CheckCircle2 className="w-5 h-5 text-green-600 dark:text-green-400 flex-shrink-0" />
+          <p className="text-sm text-green-700 dark:text-green-300">{crSuccess}</p>
         </div>
       )}
       {crError && (
-        <div className="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 flex items-center gap-2">
+        <div className="mb-4 p-3 rounded-lg bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 flex items-center gap-2">
           <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0" />
-          <p className="text-sm text-red-700">{crError}</p>
+          <p className="text-sm text-red-700 dark:text-red-300">{crError}</p>
         </div>
       )}
 
@@ -197,55 +198,55 @@ export default function Dashboard() {
               <Plus className="w-5 h-5" /> Post Class Update
             </button>
           ) : (
-            <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+            <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6 shadow-sm">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-slate-800">Post Class Update</h3>
-                <button onClick={() => setShowCrForm(false)} className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100">
+                <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200">Post Class Update</h3>
+                <button onClick={() => setShowCrForm(false)} className="p-1.5 rounded-lg text-slate-400 dark:text-slate-500 hover:bg-slate-100 dark:bg-slate-700">
                   <X className="w-5 h-5" />
                 </button>
               </div>
-              <div className="mb-3 p-2 rounded-lg bg-slate-50 text-xs text-slate-500">
+              <div className="mb-3 p-2 rounded-lg bg-slate-50 dark:bg-slate-900 text-xs text-slate-500 dark:text-slate-400">
                 Posting for: <span className="font-medium">{profile?.branch} · {profile?.year} · Section {profile?.section}</span> (from your profile)
               </div>
               <form onSubmit={handleCrSubmit} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Date *</label>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Date *</label>
                   <input type="date" value={crForm.date} onChange={(e) => setCrForm({ ...crForm, date: e.target.value })} required
-                    className="w-full px-3 py-2 rounded-lg border border-slate-300 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 outline-none" />
+                    className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 dark:text-slate-200 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 outline-none" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Start Time *</label>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Start Time *</label>
                   <input type="time" value={crForm.start_time} onChange={(e) => setCrForm({ ...crForm, start_time: e.target.value })} required
-                    className="w-full px-3 py-2 rounded-lg border border-slate-300 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 outline-none" />
+                    className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 dark:text-slate-200 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 outline-none" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">End Time (if applicable)</label>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">End Time (if applicable)</label>
                   <input type="time" value={crForm.end_time} onChange={(e) => setCrForm({ ...crForm, end_time: e.target.value })}
-                    className="w-full px-3 py-2 rounded-lg border border-slate-300 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 outline-none" />
+                    className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 dark:text-slate-200 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 outline-none" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Subject/Class *</label>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Subject/Class *</label>
                   <input type="text" value={crForm.subject} onChange={(e) => setCrForm({ ...crForm, subject: e.target.value })} required
-                    className="w-full px-3 py-2 rounded-lg border border-slate-300 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 outline-none"
+                    className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 dark:text-slate-200 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 outline-none"
                     placeholder="Data Structures" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Location/Room</label>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Location/Room</label>
                   <input type="text" value={crForm.location} onChange={(e) => setCrForm({ ...crForm, location: e.target.value })}
-                    className="w-full px-3 py-2 rounded-lg border border-slate-300 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 outline-none"
+                    className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 dark:text-slate-200 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 outline-none"
                     placeholder="Room 101, Block A" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Update Type *</label>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Update Type *</label>
                   <select value={crForm.update_type} onChange={(e) => setCrForm({ ...crForm, update_type: e.target.value })}
-                    className="w-full px-3 py-2 rounded-lg border border-slate-300 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 outline-none">
+                    className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 dark:text-slate-200 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 outline-none">
                     {UPDATE_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
                   </select>
                 </div>
                 <div className="sm:col-span-2 lg:col-span-3">
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Details *</label>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Details *</label>
                   <textarea value={crForm.description} onChange={(e) => setCrForm({ ...crForm, description: e.target.value })} required rows={2}
-                    className="w-full px-3 py-2 rounded-lg border border-slate-300 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 outline-none"
+                    className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 dark:text-slate-200 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 outline-none"
                     placeholder="Class is cancelled due to..." />
                 </div>
                 <div className="sm:col-span-2 lg:col-span-3 flex gap-3">
@@ -255,7 +256,7 @@ export default function Dashboard() {
                     Post Update
                   </button>
                   <button type="button" onClick={() => setShowCrForm(false)}
-                    className="px-5 py-2.5 rounded-xl border border-slate-300 text-slate-600 font-medium hover:bg-slate-100 transition-colors">
+                    className="px-5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 font-medium hover:bg-slate-100 dark:bg-slate-700 transition-colors">
                     Cancel
                   </button>
                 </div>
@@ -268,15 +269,15 @@ export default function Dashboard() {
       {clashes.length > 0 && (
         <div className="mb-8">
           <div className="flex items-center gap-2 mb-4">
-            <AlertTriangle className="w-5 h-5 text-red-600" />
-            <h2 className="text-xl font-bold text-slate-800">Schedule Clashes ({clashes.length})</h2>
+            <AlertTriangle className="w-5 h-5 text-red-600 dark:text-red-400" />
+            <h2 className="text-xl font-bold text-slate-800 dark:text-slate-200">Schedule Clashes ({clashes.length})</h2>
           </div>
           <div className="space-y-3">
             {clashes.slice(0, 5).map((clash) => (
               <ClashBadge key={clash.id} clash={clash} />
             ))}
             {clashes.length > 5 && (
-              <Link to="/timetable" className="text-sm text-teal-600 font-medium hover:underline flex items-center gap-1">
+              <Link to="/timetable" className="text-sm text-teal-600 dark:text-teal-400 font-medium hover:underline flex items-center gap-1">
                 View all clashes <ArrowRight className="w-4 h-4" />
               </Link>
             )}
@@ -285,27 +286,27 @@ export default function Dashboard() {
       )}
 
       {isStudent && myCrUpdates.length > 0 && (
-        <div className="mb-8 bg-white rounded-2xl border border-slate-200 p-6 shadow-sm" id="cr-updates">
+        <div className="mb-8 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6 shadow-sm" id="cr-updates">
           <div className="flex items-center gap-2 mb-4">
-            <GraduationCap className="w-5 h-5 text-teal-600" />
-            <h2 className="text-lg font-semibold text-slate-800">Class Updates ({myCrUpdates.length})</h2>
+            <GraduationCap className="w-5 h-5 text-teal-600 dark:text-teal-400" />
+            <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-200">Class Updates ({myCrUpdates.length})</h2>
           </div>
           <div className="space-y-2">
             {myCrUpdates.map((u) => (
-              <div key={u.id} className="group p-3 rounded-xl border border-slate-200 bg-teal-50/30">
+              <div key={u.id} className="group p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-teal-50/30 dark:bg-teal-900/20">
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex-1">
                     <div className="flex items-center gap-2 flex-wrap mb-1">
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-teal-100 text-teal-700">
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-teal-100 dark:bg-teal-900/40 text-teal-700 dark:text-teal-300">
                         {u.update_type}
                       </span>
-                      <p className="text-sm font-semibold text-slate-800">{u.subject}</p>
+                      <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">{u.subject}</p>
                     </div>
-                    <p className="text-xs text-slate-600">{u.description}</p>
+                    <p className="text-xs text-slate-600 dark:text-slate-300">{u.description}</p>
                     <div className="mt-2">
                       <TargetAudienceBadge branch={u.branch} year={u.year} section={u.section} />
                     </div>
-                    <div className="flex flex-wrap gap-3 mt-2 text-xs text-slate-500">
+                    <div className="flex flex-wrap gap-3 mt-2 text-xs text-slate-500 dark:text-slate-400">
                       <span className="flex items-center gap-1"><Calendar className="w-3 h-3" /> {formatDate(u.date)}</span>
                       <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> {formatTime12(u.start_time)}{u.end_time ? ` – ${formatTime12(u.end_time)}` : ''}</span>
                       {u.location && <span className="flex items-center gap-1"><MapPin className="w-3 h-3" /> {u.location}</span>}
@@ -314,7 +315,7 @@ export default function Dashboard() {
                   {isApprovedCR && u.cr_id === profile?.id && (
                     <button
                       onClick={() => handleDeleteCrUpdate(u.id)}
-                      className="opacity-0 group-hover:opacity-100 p-1 rounded-lg text-red-500 hover:bg-red-50 transition-all"
+                      className="opacity-0 group-hover:opacity-100 p-1 rounded-lg text-red-500 hover:bg-red-50 dark:bg-red-950/40 transition-all"
                     >
                       <X className="w-4 h-4" />
                     </button>
@@ -328,31 +329,31 @@ export default function Dashboard() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {isStudent && (
-        <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+        <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6 shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
-              <Calendar className="w-5 h-5 text-teal-600" />
-              <h2 className="text-lg font-semibold text-slate-800">Today's Classes</h2>
+              <Calendar className="w-5 h-5 text-teal-600 dark:text-teal-400" />
+              <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-200">Today's Classes</h2>
             </div>
-            <Link to="/timetable" className="text-sm text-teal-600 hover:underline flex items-center gap-1">
+            <Link to="/timetable" className="text-sm text-teal-600 dark:text-teal-400 hover:underline flex items-center gap-1">
               View all <ArrowRight className="w-4 h-4" />
             </Link>
           </div>
           {todayClasses.length === 0 ? (
-            <p className="text-sm text-slate-400 py-8 text-center">No classes scheduled for today.</p>
+            <p className="text-sm text-slate-400 dark:text-slate-500 py-8 text-center">No classes scheduled for today.</p>
           ) : (
             <div className="space-y-2">
               {todayClasses.map((cls) => {
                 const clashExists = clashes.some(c => c.activityA.label === cls.subject || c.activityB.label === cls.subject);
                 return (
-                  <div key={cls.id} className={`flex items-center gap-3 p-3 rounded-xl border ${clashExists ? 'border-red-300 bg-red-50' : 'border-slate-200 bg-slate-50'}`}>
+                  <div key={cls.id} className={`flex items-center gap-3 p-3 rounded-xl border ${clashExists ? 'border-red-300 dark:border-red-800 bg-red-50 dark:bg-red-950/40' : 'border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900'}`}>
                     <div className="flex flex-col items-center min-w-[60px]">
-                      <span className="text-sm font-semibold text-slate-700">{formatTime12(cls.start_time)}</span>
-                      <span className="text-xs text-slate-400">{formatTime12(cls.end_time)}</span>
+                      <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">{formatTime12(cls.start_time)}</span>
+                      <span className="text-xs text-slate-400 dark:text-slate-500">{formatTime12(cls.end_time)}</span>
                     </div>
                     <div className="flex-1">
-                      <p className="text-sm font-medium text-slate-800">{cls.subject}</p>
-                      <p className="text-xs text-slate-500 flex items-center gap-1">
+                      <p className="text-sm font-medium text-slate-800 dark:text-slate-200">{cls.subject}</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1">
                         <MapPin className="w-3 h-3" /> {cls.room}
                       </p>
                     </div>
@@ -365,35 +366,36 @@ export default function Dashboard() {
         </div>
         )}
 
-        <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm" id="upcoming-events">
+        <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6 shadow-sm" id="upcoming-events">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
-              <Users className="w-5 h-5 text-teal-600" />
-              <h2 className="text-lg font-semibold text-slate-800">Upcoming Events</h2>
+              <Users className="w-5 h-5 text-teal-600 dark:text-teal-400" />
+              <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-200">Upcoming Events</h2>
             </div>
-            <Link to="/events" className="text-sm text-teal-600 hover:underline flex items-center gap-1">
+            <Link to="/events" className="text-sm text-teal-600 dark:text-teal-400 hover:underline flex items-center gap-1">
               View all <ArrowRight className="w-4 h-4" />
             </Link>
           </div>
           {upcomingEvents.length === 0 ? (
-            <p className="text-sm text-slate-400 py-8 text-center">No upcoming events.</p>
+            <p className="text-sm text-slate-400 dark:text-slate-500 py-8 text-center">No upcoming events.</p>
           ) : (
             <div className="space-y-2">
               {upcomingEvents.map((evt) => {
                 const clashExists = clashes.some(c => c.activityA.label === evt.title || c.activityB.label === evt.title);
                 return (
-                  <div key={evt.id} className={`flex items-center gap-3 p-3 rounded-xl border ${clashExists ? 'border-red-300 bg-red-50' : 'border-slate-200 bg-slate-50'}`}>
+                  <div key={evt.id} className={`flex items-center gap-3 p-3 rounded-xl border ${clashExists ? 'border-red-300 dark:border-red-800 bg-red-50 dark:bg-red-950/40' : 'border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900'}`}>
                     <div className="flex flex-col items-center min-w-[60px]">
-                      <span className="text-xs font-semibold text-slate-700">{new Date(evt.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
-                      <span className="text-xs text-slate-400">{formatTime12(evt.start_time)}</span>
+                      <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">{new Date(evt.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                      <span className="text-xs text-slate-400 dark:text-slate-500">{formatTime12(evt.start_time)}</span>
                     </div>
                     <div className="flex-1">
-                      <p className="text-sm font-medium text-slate-800">{evt.title}</p>
-                      <p className="text-xs text-slate-500 flex items-center gap-1">
+                      <p className="text-sm font-medium text-slate-800 dark:text-slate-200">{evt.title}</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1">
                         <MapPin className="w-3 h-3" /> {evt.location}
                       </p>
                       <div className="mt-1.5">
                         <TargetAudienceBadge branches={evt.target_branches} years={evt.target_years} variant="compact" />
+                        <InterestTags interests={evt.target_interests} variant="compact" />
                       </div>
                     </div>
                     {clashExists && <AlertTriangle className="w-5 h-5 text-red-500" />}
@@ -404,26 +406,27 @@ export default function Dashboard() {
           )}
         </div>
 
-        <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm" id="latest-notice">
+        <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6 shadow-sm" id="latest-notice">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <Bell className="w-5 h-5 text-amber-500" />
-              <h2 className="text-lg font-semibold text-slate-800">Recent Notices</h2>
+              <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-200">Recent Notices</h2>
             </div>
-            <Link to="/notices" className="text-sm text-teal-600 hover:underline flex items-center gap-1">
+            <Link to="/notices" className="text-sm text-teal-600 dark:text-teal-400 hover:underline flex items-center gap-1">
               View all <ArrowRight className="w-4 h-4" />
             </Link>
           </div>
           {notices.length === 0 ? (
-            <p className="text-sm text-slate-400 py-8 text-center">No notices yet.</p>
+            <p className="text-sm text-slate-400 dark:text-slate-500 py-8 text-center">No notices yet.</p>
           ) : (
             <div className="space-y-2">
               {notices.map((notice) => (
-                <div key={notice.id} className="p-3 rounded-xl border border-slate-200 bg-amber-50/50">
-                  <p className="text-sm font-medium text-slate-800">{notice.title}</p>
-                  <p className="text-xs text-slate-500 mt-0.5">{notice.department} · {formatDate(notice.date)}</p>
+                <div key={notice.id} className="p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-amber-50/50 dark:bg-amber-900/20">
+                  <p className="text-sm font-medium text-slate-800 dark:text-slate-200">{notice.title}</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{formatDate(notice.date)}</p>
                   <div className="mt-1.5">
                     <TargetAudienceBadge branches={notice.target_branches} years={notice.target_years} variant="compact" />
+                    <InterestTags interests={notice.target_interests} variant="compact" />
                   </div>
                 </div>
               ))}
@@ -431,31 +434,32 @@ export default function Dashboard() {
           )}
         </div>
 
-        <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm" id="latest-announcement">
+        <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6 shadow-sm" id="latest-announcement">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <Megaphone className="w-5 h-5 text-purple-500" />
-              <h2 className="text-lg font-semibold text-slate-800">Recent Announcements</h2>
+              <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-200">Recent Announcements</h2>
             </div>
-            <Link to="/announcements" className="text-sm text-teal-600 hover:underline flex items-center gap-1">
+            <Link to="/announcements" className="text-sm text-teal-600 dark:text-teal-400 hover:underline flex items-center gap-1">
               View all <ArrowRight className="w-4 h-4" />
             </Link>
           </div>
           {announcements.length === 0 ? (
-            <p className="text-sm text-slate-400 py-8 text-center">No announcements yet.</p>
+            <p className="text-sm text-slate-400 dark:text-slate-500 py-8 text-center">No announcements yet.</p>
           ) : (
             <div className="space-y-2">
               {announcements.map((ann) => {
                 const clashExists = isStudent && clashes.some(c => (c.type === 'class_announcement' || c.type === 'announcement_announcement' || c.type === 'event_announcement') && (c.id.includes(ann.id)));
                 return (
-                  <div key={ann.id} className={`p-3 rounded-xl border ${clashExists ? 'border-red-300 bg-red-50' : 'border-slate-200 bg-purple-50/50'}`}>
+                  <div key={ann.id} className={`p-3 rounded-xl border ${clashExists ? 'border-red-300 dark:border-red-800 bg-red-50 dark:bg-red-950/40' : 'border-slate-200 dark:border-slate-700 bg-purple-50/50 dark:bg-purple-900/20'}`}>
                     <div className="flex items-center justify-between">
-                      <p className="text-sm font-medium text-slate-800">{ann.title}</p>
+                      <p className="text-sm font-medium text-slate-800 dark:text-slate-200">{ann.title}</p>
                       {clashExists && <AlertTriangle className="w-4 h-4 text-red-500" />}
                     </div>
-                    <p className="text-xs text-slate-500 mt-0.5">{ann.society_name} · {formatDate(ann.date)}</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{ann.society_name} · {formatDate(ann.date)}</p>
                     <div className="mt-1.5">
                       <TargetAudienceBadge branches={ann.target_branches} years={ann.target_years} variant="compact" />
+                      <InterestTags interests={ann.target_interests} variant="compact" />
                     </div>
                   </div>
                 );

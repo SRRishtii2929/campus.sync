@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
@@ -19,11 +19,23 @@ import SocietyPanel from '@/pages/SocietyPanel';
 function AppContent() {
   const { loading } = useAuth();
   const [animationDone, setAnimationDone] = useState(false);
+  const [shouldShowLoader, setShouldShowLoader] = useState(false);
 
-  const handleAnimationComplete = useCallback(() => setAnimationDone(true), []);
+  useEffect(() => {
+    // Show loading screen on every fresh page load / reload.
+    // We use a module-level flag so it only shows on the initial mount,
+    // not on client-side route navigation.
+    setShouldShowLoader(true);
+  }, []);
 
-  if (loading && !animationDone) {
-    return <LoadingScreen onComplete={handleAnimationComplete} />;
+  const handleAnimationComplete = useCallback(() => {
+    setAnimationDone(true);
+    setShouldShowLoader(false);
+  }, []);
+
+  // Show loading screen on fresh load — waits for both animation AND auth to finish
+  if (shouldShowLoader && !animationDone) {
+    return <LoadingScreen onComplete={handleAnimationComplete} appReady={!loading} />;
   }
 
   return (
@@ -39,7 +51,7 @@ function AppContent() {
           <Route path="/events" element={<ProtectedRoute><Events /></ProtectedRoute>} />
           <Route path="/notices" element={<ProtectedRoute><Notices /></ProtectedRoute>} />
           <Route path="/announcements" element={<ProtectedRoute><Announcements /></ProtectedRoute>} />
-          <Route path="/admin" element={<ProtectedRoute roles={['college_admin']}><AdminPanel /></ProtectedRoute>} />
+          <Route path="/admin" element={<ProtectedRoute roles={['college_admin', 'primary_admin']}><AdminPanel /></ProtectedRoute>} />
           <Route path="/society-admin" element={<ProtectedRoute roles={['society_admin']}><SocietyPanel /></ProtectedRoute>} />
         </Route>
       </Routes>

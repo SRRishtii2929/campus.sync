@@ -40,15 +40,15 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    // Check the caller is a college_admin
+    // Check the caller is a college_admin or primary_admin (with approved status)
     const { data: callerProfile } = await supabaseAdmin
       .from("profiles")
-      .select("role")
+      .select("role, approval_status")
       .eq("id", callerData.user.id)
       .maybeSingle();
 
-    if (!callerProfile || callerProfile.role !== "college_admin") {
-      return new Response(JSON.stringify({ error: "Forbidden — only College Admins can delete accounts" }), {
+    if (!callerProfile || !["college_admin", "primary_admin"].includes(callerProfile.role) || callerProfile.approval_status !== "approved") {
+      return new Response(JSON.stringify({ error: "Forbidden — only administrators can delete accounts" }), {
         status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -84,9 +84,17 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    // Only allow deleting student and society_admin accounts
-    if (targetProfile.role === "college_admin") {
-      return new Response(JSON.stringify({ error: "Cannot delete College Admin accounts" }), {
+    // Never allow deleting primary_admin accounts
+    if (targetProfile.role === "primary_admin") {
+      return new Response(JSON.stringify({ error: "Cannot delete Primary Admin accounts" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // College admins cannot delete other college admins; only primary_admins can
+    if (targetProfile.role === "college_admin" && callerProfile.role !== "primary_admin") {
+      return new Response(JSON.stringify({ error: "Only Primary Admins can delete College Admin accounts" }), {
         status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });

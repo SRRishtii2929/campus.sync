@@ -24,8 +24,14 @@
   100% { opacity: 1; transform: scale(1); }
 }
 
-@keyframes ls-logo-hold {
-  0%, 100% { opacity: 1; transform: scale(1); }
+@keyframes ls-whirlpool-fade-in {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+@keyframes ls-whirlpool-spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
 
 @keyframes ls-logo-spiral {
@@ -34,15 +40,20 @@
     transform: scale(1) rotate(0deg);
     filter: blur(0px);
   }
-  40% {
+  35% {
     opacity: 0.8;
-    transform: scale(0.7) rotate(120deg);
+    transform: scale(0.65) rotate(140deg);
     filter: blur(2px);
+  }
+  70% {
+    opacity: 0.4;
+    transform: scale(0.25) rotate(300deg);
+    filter: blur(6px);
   }
   100% {
     opacity: 0;
-    transform: scale(0.05) rotate(360deg);
-    filter: blur(8px);
+    transform: scale(0.02) rotate(420deg);
+    filter: blur(10px);
   }
 }
 
@@ -66,22 +77,23 @@
 
 @keyframes ls-bell-ring {
   0%, 100% { transform: rotate(0deg); }
-  15% { transform: rotate(8deg); }
-  35% { transform: rotate(-7deg); }
-  55% { transform: rotate(5deg); }
-  75% { transform: rotate(-3deg); }
-  90% { transform: rotate(1deg); }
+  12% { transform: rotate(10deg); }
+  28% { transform: rotate(-8deg); }
+  44% { transform: rotate(6deg); }
+  60% { transform: rotate(-4deg); }
+  76% { transform: rotate(2deg); }
+  90% { transform: rotate(-1deg); }
 }
 
 @keyframes ls-ring-ripple {
   0% { opacity: 0; transform: scale(0.8); }
   50% { opacity: 0.5; }
-  100% { opacity: 0; transform: scale(1.6); }
+  100% { opacity: 0; transform: scale(1.8); }
 }
 
 @keyframes ls-notification-stroke {
-  0% { opacity: 0; transform: translateX(-4px) scale(0.6); }
-  60% { opacity: 1; transform: translateX(2px) scale(1.1); }
+  0% { opacity: 0; transform: translateX(-6px) scale(0.5); }
+  50% { opacity: 1; transform: translateX(3px) scale(1.15); }
   100% { opacity: 1; transform: translateX(0) scale(1); }
 }
 
@@ -90,8 +102,40 @@
   100% { opacity: 0; }
 }
 
+@keyframes ls-progress-pulse {
+  0% { width: 20%; }
+  100% { width: 100%; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .ls-reduced-motion {
     animation: none !important;
   }
+}
+
+/* Loading screen background */
+.ls-screen-bg {
+  background: linear-gradient(135deg, #faf9ff 0%, #f5f3ff 50%, #efedff 100%);
+}
+.dark .ls-screen-bg {
+  background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #1e1b3a 100%);
+}
+
+/* Prevent horizontal scroll during loading screen */
+body.ls-loading {
+  overflow: hidden;
+}
+
+/* CampusSync brand icon/text - adaptive for dark mode */
+.cs-brand-navy {
+  stroke: #172b46;
+}
+.dark .cs-brand-navy {
+  stroke: #f1f5f9;
+}
+.cs-brand-navy-text {
+  color: #172b46;
+}
+.dark .cs-brand-navy-text {
+  color: #f1f5f9;
 }

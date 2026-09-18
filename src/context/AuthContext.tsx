@@ -8,8 +8,9 @@ interface AuthContextType {
   profile: Profile | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
-  signUp: (email: string, password: string, fullName: string, role: UserRole, department: string, branch?: string, year?: string, section?: string, studentType?: StudentType, societyName?: string) => Promise<{ error: string | null }>;
+  signUp: (email: string, password: string, fullName: string, role: UserRole, department: string, branch?: string, year?: string, section?: string, studentType?: StudentType, societyName?: string, interests?: string[]) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
+  refreshProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -112,9 +113,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error: error?.message ?? null };
   }
 
-  async function signUp(email: string, password: string, fullName: string, role: UserRole, department: string, branch?: string, year?: string, section?: string, studentType?: StudentType, societyName?: string) {
+  async function signUp(email: string, password: string, fullName: string, role: UserRole, department: string, branch?: string, year?: string, section?: string, studentType?: StudentType, societyName?: string, interests?: string[]) {
+    const trimmedEmail = email.trim();
+
+    if (role === 'student' && !trimmedEmail.toLowerCase().endsWith('@igdtuw.ac.in')) {
+      return { error: 'Please use your official IGDTUW email address.' };
+    }
+
     const { data, error } = await supabase.auth.signUp({
-      email: email.trim(),
+      email: trimmedEmail,
       password,
       options: {
         data: {
@@ -126,6 +133,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           section,
           student_type: studentType,
           society_name: societyName,
+          interests: interests && interests.length > 0 ? interests : [],
         },
       },
     });
@@ -136,12 +144,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     if (!data.session) {
       const { error: signInError } = await supabase.auth.signInWithPassword({
-        email: email.trim(),
+        email: trimmedEmail,
         password,
       });
       if (signInError) {
         return { error: signInError.message };
       }
+    }
+
+    // Trigger registration notification email (non-blocking, best-effort)
+    try {
+      const session = await supabase.auth.getSession();
+      const accessToken = session.data.session?.access_token;
+      if (accessToken) {
+        fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-notification-email`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${accessToken}`,
+          },
+          body: JSON.stringify({
+            type: 'registration',
+            to_email: trimmedEmail,
+            role,
+          }),
+        }).catch(() => {});
+      }
+    } catch {
+      // Email notification is best-effort; don't fail registration
     }
 
     return { error: null };
@@ -157,8 +187,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   }
 
+  async function refreshProfile() {
+    if (!user?.id) return;
+    await loadProfile(user.id);
+  }
+
   return (
-    <AuthContext.Provider value={{ session, user, profile, loading, signIn, signUp, signOut }}>
+    <AuthContext.Provider value={{ session, user, profile, loading, signIn, signUp, signOut, refreshProfile }}>
       {children}
     </AuthContext.Provider>
   );

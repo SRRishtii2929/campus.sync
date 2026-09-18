@@ -21,7 +21,7 @@ export default function TargetAudienceBadge({
 
   if (!hasTargeting) {
     return (
-      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-600">
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
         <Target className="w-3 h-3" /> All Students
       </span>
     );
@@ -35,7 +35,7 @@ export default function TargetAudienceBadge({
     if (branches && branches.length > 0) parts.push(branches.join(', '));
     if (years && years.length > 0) parts.push(years.join(', '));
     return (
-      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-teal-100 text-teal-700">
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-teal-100 dark:bg-teal-900/40 text-teal-700 dark:text-teal-300">
         <Target className="w-3 h-3" /> {parts.join(' · ')}
       </span>
     );

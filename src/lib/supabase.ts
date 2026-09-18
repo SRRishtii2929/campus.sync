@@ -17,7 +17,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   },
 });
 
-export type UserRole = 'student' | 'society_admin' | 'college_admin';
+export type UserRole = 'student' | 'society_admin' | 'college_admin' | 'primary_admin';
 export type StudentType = 'regular' | 'cr';
 export type ApprovalStatus = 'pending' | 'approved' | 'rejected';
 
@@ -33,6 +33,7 @@ export interface Profile {
   student_type: StudentType | null;
   approval_status: ApprovalStatus | null;
   society_name: string | null;
+  interests: string[] | null;
   created_at: string;
 }
 
@@ -57,8 +58,11 @@ export interface EventEntry {
   end_time: string;
   location: string;
   organizer: string;
+  registration_url: string | null;
   target_branches: string[] | null;
   target_years: string[] | null;
+  target_interests: string[] | null;
+  image_path: string | null;
   created_by: string | null;
   created_at: string;
 }
@@ -68,11 +72,12 @@ export interface Notice {
   title: string;
   description: string;
   date: string;
-  department: string;
   deadline: string | null;
   attachment_url: string | null;
+  image_path: string | null;
   target_branches: string[] | null;
   target_years: string[] | null;
+  target_interests: string[] | null;
   created_by: string | null;
   created_at: string;
 }
@@ -111,8 +116,11 @@ export interface Announcement {
   event_time: string | null;
   registration_deadline: string | null;
   event_location: string | null;
+  registration_url: string | null;
   target_branches: string[] | null;
   target_years: string[] | null;
+  target_interests: string[] | null;
+  image_path: string | null;
   created_by: string | null;
   created_at: string;
 }

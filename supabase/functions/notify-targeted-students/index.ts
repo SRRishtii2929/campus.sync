@@ -47,7 +47,7 @@ Deno.serve(async (req: Request) => {
 async function notifyNotice(supabase: any, noticeId: string, corsHeaders: Record<string, string>) {
     const { data: notice, error: noticeError } = await supabase
       .from("notices")
-      .select("id, title, description, target_branches, target_years")
+      .select("id, title, description, target_branches, target_years, target_interests")
       .eq("id", noticeId)
       .maybeSingle();
 
@@ -66,13 +66,14 @@ async function notifyNotice(supabase: any, noticeId: string, corsHeaders: Record
       description: notice.description,
       targetBranches: notice.target_branches,
       targetYears: notice.target_years,
+      targetInterests: notice.target_interests,
     });
 }
 
 async function notifyAnnouncement(supabase: any, announcementId: string, corsHeaders: Record<string, string>) {
     const { data: ann, error: annError } = await supabase
       .from("announcements")
-      .select("id, title, content, target_branches, target_years")
+      .select("id, title, content, target_branches, target_years, target_interests")
       .eq("id", announcementId)
       .maybeSingle();
 
@@ -91,13 +92,14 @@ async function notifyAnnouncement(supabase: any, announcementId: string, corsHea
       description: ann.content,
       targetBranches: ann.target_branches,
       targetYears: ann.target_years,
+      targetInterests: ann.target_interests,
     });
 }
 
 async function notifyEvent(supabase: any, eventId: string, corsHeaders: Record<string, string>) {
     const { data: evt, error: evtError } = await supabase
       .from("events")
-      .select("id, title, description, target_branches, target_years")
+      .select("id, title, description, target_branches, target_years, target_interests")
       .eq("id", eventId)
       .maybeSingle();
 
@@ -116,6 +118,7 @@ async function notifyEvent(supabase: any, eventId: string, corsHeaders: Record<s
       description: evt.description,
       targetBranches: evt.target_branches,
       targetYears: evt.target_years,
+      targetInterests: evt.target_interests,
     });
 }
 
@@ -130,15 +133,18 @@ async function sendNotifications(
     description: string;
     targetBranches: string[] | null;
     targetYears: string[] | null;
+    targetInterests: string[] | null;
   },
 ) {
     const targetBranches = opts.targetBranches;
     const targetYears = opts.targetYears;
+    const targetInterests = opts.targetInterests;
     const isGeneral = !targetBranches && !targetYears;
+    const hasInterestFilter = targetInterests && targetInterests.length > 0;
 
     let studentQuery = supabase
       .from("profiles")
-      .select("id, branch, year")
+      .select("id, branch, year, interests")
       .eq("role", "student");
 
     if (!isGeneral) {
@@ -169,7 +175,21 @@ async function sendNotifications(
       });
     }
 
-    const notifications = students.map((s: { id: string }) => ({
+    let eligibleStudents = students;
+    if (hasInterestFilter) {
+      const interestSet = new Set(targetInterests!);
+      eligibleStudents = students.filter((s: { interests?: string[] | null }) =>
+        s.interests && s.interests.some((i: string) => interestSet.has(i))
+      );
+    }
+
+    if (eligibleStudents.length === 0) {
+      return new Response(JSON.stringify({ notified: 0 }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const notifications = eligibleStudents.map((s: { id: string }) => ({
       user_id: s.id,
       notice_id: opts.tableName === "notices" ? opts.itemId : null,
       announcement_id: opts.tableName === "announcements" ? opts.itemId : null,
@@ -189,7 +209,7 @@ async function sendNotifications(
       });
     }
 
-    return new Response(JSON.stringify({ notified: students.length }), {
+    return new Response(JSON.stringify({ notified: eligibleStudents.length }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
 }

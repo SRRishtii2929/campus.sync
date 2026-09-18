@@ -41,11 +41,11 @@ export default function Landing() {
         </div>
       </section>
 
-      <section className="py-20 bg-white">
+      <section className="py-20 bg-white dark:bg-slate-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
-            <h2 className="text-3xl sm:text-4xl font-bold text-slate-800 mb-4">Everything you need for campus life</h2>
-            <p className="text-lg text-slate-500 max-w-2xl mx-auto">One platform to manage your classes, events, notices, and society activities.</p>
+            <h2 className="text-3xl sm:text-4xl font-bold text-slate-800 dark:text-slate-200 mb-4">Everything you need for campus life</h2>
+            <p className="text-lg text-slate-500 dark:text-slate-400 max-w-2xl mx-auto">One platform to manage your classes, events, notices, and society activities.</p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {[
@@ -58,12 +58,12 @@ export default function Landing() {
             ].map((feature) => {
               const Icon = feature.icon;
               return (
-                <div key={feature.title} className="group p-6 rounded-2xl border border-slate-200 hover:border-teal-300 hover:shadow-lg transition-all bg-white">
+                <div key={feature.title} className="group p-6 rounded-2xl border border-slate-200 dark:border-slate-700 hover:border-teal-300 hover:shadow-lg transition-all bg-white dark:bg-slate-800">
                   <div className={`w-12 h-12 rounded-xl ${feature.color} flex items-center justify-center mb-4 group-hover:scale-110 transition-transform`}>
                     <Icon className="w-6 h-6 text-white" />
                   </div>
-                  <h3 className="text-lg font-semibold text-slate-800 mb-2">{feature.title}</h3>
-                  <p className="text-sm text-slate-500 leading-relaxed">{feature.desc}</p>
+                  <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200 mb-2">{feature.title}</h3>
+                  <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed">{feature.desc}</p>
                 </div>
               );
             })}
@@ -71,9 +71,9 @@ export default function Landing() {
         </div>
       </section>
 
-      <section className="py-20 bg-slate-50">
+      <section className="py-20 bg-slate-50 dark:bg-slate-900">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-3xl font-bold text-slate-800 mb-8">How it works</h2>
+          <h2 className="text-3xl font-bold text-slate-800 dark:text-slate-200 mb-8">How it works</h2>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-8">
             {[
               { step: '1', title: 'Create Account', desc: 'Register as a student, society admin, or college admin.' },
@@ -84,8 +84,8 @@ export default function Landing() {
                 <div className="w-16 h-16 rounded-full bg-teal-600 text-white text-2xl font-bold flex items-center justify-center mx-auto mb-4 shadow-lg">
                   {item.step}
                 </div>
-                <h3 className="text-lg font-semibold text-slate-800 mb-2">{item.title}</h3>
-                <p className="text-sm text-slate-500">{item.desc}</p>
+                <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200 mb-2">{item.title}</h3>
+                <p className="text-sm text-slate-500 dark:text-slate-400">{item.desc}</p>
               </div>
             ))}
           </div>

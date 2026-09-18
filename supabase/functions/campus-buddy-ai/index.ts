@@ -21,6 +21,7 @@ interface Profile {
   year: string | null;
   section: string | null;
   society_name: string | null;
+  interests: string[] | null;
 }
 
 interface HistoryMessage {
@@ -266,6 +267,8 @@ Your job is to answer users' questions about campus information using ONLY the r
 ## Role Awareness
 The context provided to you is personalized based on the authenticated user's role (Student, Society Admin, or College Admin). The data you receive is what that role is entitled to see. Do NOT reference or suggest data types that are not present in the context. For example, if no timetable or class information is provided, do not mention classes or suggest checking a personal timetable. Answer based only on the sections actually included in the context.
 
+If the student has selected interests, prioritize events, notices, and announcements whose target interests overlap with the student's interests when answering questions like "What opportunities are relevant to me?", "What should I check out?", or "What's happening this week?". Only recommend items that actually exist in the provided context — do not hallucinate. If no content matches the student's interests, say so honestly.
+
 ## CampusSync Sections
 The platform has these sections, each with a navigation path and highlight anchor:
 - Notices: path="/notices", highlight="latest-notice" — Official college notices from administration
@@ -366,22 +369,22 @@ Deno.serve(async (req: Request) => {
 
     // Common queries for all roles
     const commonQueries = [
-      supabaseAdmin.from("notices").select("title, description, date, department, deadline").order("date", { ascending: false }).limit(5),
-      supabaseAdmin.from("events").select("title, description, date, start_time, end_time, location, organizer").gte("date", today).order("date").limit(5),
-      supabaseAdmin.from("events").select("id, title, description, date, start_time, end_time, location, organizer").order("date"),
+      supabaseAdmin.from("notices").select("title, description, date, department, deadline, target_interests").order("date", { ascending: false }).limit(5),
+      supabaseAdmin.from("events").select("title, description, date, start_time, end_time, location, organizer, target_interests").gte("date", today).order("date").limit(5),
+      supabaseAdmin.from("events").select("id, title, description, date, start_time, end_time, location, organizer, target_interests").order("date"),
     ];
 
     // Announcements: all roles see announcements, but society admin sees their own society's prominently
-    let announcementQuery = supabaseAdmin.from("announcements").select("title, content, society_name, date, event_date, event_time, registration_deadline, event_location").order("date", { ascending: false }).limit(5);
+    let announcementQuery = supabaseAdmin.from("announcements").select("title, content, society_name, date, event_date, event_time, registration_deadline, event_location, target_interests").order("date", { ascending: false }).limit(5);
     if (isSocietyAdmin && profile?.society_name) {
-      announcementQuery = supabaseAdmin.from("announcements").select("title, content, society_name, date, event_date, event_time, registration_deadline, event_location").eq("society_name", profile.society_name).order("date", { ascending: false }).limit(5);
+      announcementQuery = supabaseAdmin.from("announcements").select("title, content, society_name, date, event_date, event_time, registration_deadline, event_location, target_interests").eq("society_name", profile.society_name).order("date", { ascending: false }).limit(5);
     }
     commonQueries.push(announcementQuery);
 
     // All announcements for clash detection (students only need this)
     if (isStudent) {
       commonQueries.push(
-        supabaseAdmin.from("announcements").select("id, title, content, society_name, date, event_date, event_time, registration_deadline, event_location").order("date", { ascending: false })
+        supabaseAdmin.from("announcements").select("id, title, content, society_name, date, event_date, event_time, registration_deadline, event_location, target_interests").order("date", { ascending: false })
       );
       commonQueries.push(
         supabaseAdmin.from("classes").select("id, subject, day_of_week, date, start_time, end_time, room").eq("user_id", userId).order("start_time")
@@ -433,6 +436,7 @@ Deno.serve(async (req: Request) => {
 - Branch: ${profile?.branch || "Not set"}
 - Year: ${profile?.year || "Not set"}
 - Section: ${profile?.section || "Not set"}
+- Interests: ${(profile?.interests && profile.interests.length > 0) ? profile.interests.join(", ") : "None selected"}
 - Today: ${todayName}, ${today}`);
     } else if (isSocietyAdmin) {
       contextParts.push(`## Society Admin Profile
@@ -452,7 +456,7 @@ Deno.serve(async (req: Request) => {
     // Notices — all roles
     if (noticesRes.data && noticesRes.data.length > 0) {
       const noticeText = noticesRes.data.map((n: any) =>
-        `- ${n.title} | Dept: ${n.department} | Date: ${n.date}${n.deadline ? ` | Deadline: ${n.deadline}` : ""} | ${n.description}`
+        `- ${n.title} | Dept: ${n.department} | Date: ${n.date}${n.deadline ? ` | Deadline: ${n.deadline}` : ""}${n.target_interests && n.target_interests.length > 0 ? ` | Target Interests: ${n.target_interests.join(", ")}` : ""} | ${n.description}`
       ).join("\n");
       contextParts.push(`## Latest Notices\n${noticeText}`);
     } else {
@@ -462,7 +466,7 @@ Deno.serve(async (req: Request) => {
     // Announcements — all roles (filtered for society admin)
     if (announcementsRes.data && announcementsRes.data.length > 0) {
       const annText = announcementsRes.data.map((a: any) =>
-        `- ${a.title} by ${a.society_name} | Date: ${a.date}${a.event_date ? ` | Event Date: ${a.event_date}` : ""}${a.event_time ? ` at ${a.event_time}` : ""}${a.event_location ? ` | Location: ${a.event_location}` : ""}${a.registration_deadline ? ` | Registration Deadline: ${a.registration_deadline}` : ""} | ${a.content}`
+        `- ${a.title} by ${a.society_name} | Date: ${a.date}${a.event_date ? ` | Event Date: ${a.event_date}` : ""}${a.event_time ? ` at ${a.event_time}` : ""}${a.event_location ? ` | Location: ${a.event_location}` : ""}${a.registration_deadline ? ` | Registration Deadline: ${a.registration_deadline}` : ""}${a.target_interests && a.target_interests.length > 0 ? ` | Target Interests: ${a.target_interests.join(", ")}` : ""} | ${a.content}`
       ).join("\n");
       const sectionTitle = isSocietyAdmin ? `## Latest Announcements (for ${profile?.society_name || "your society"})` : "## Latest Society Announcements";
       contextParts.push(`${sectionTitle}\n${annText}`);
@@ -474,7 +478,7 @@ Deno.serve(async (req: Request) => {
     // Events — all roles
     if (eventsRes.data && eventsRes.data.length > 0) {
       const eventText = eventsRes.data.map((e: any) =>
-        `- ${e.title} on ${e.date} from ${e.start_time} to ${e.end_time} at ${e.location} | Organizer: ${e.organizer} | ${e.description}`
+        `- ${e.title} on ${e.date} from ${e.start_time} to ${e.end_time} at ${e.location} | Organizer: ${e.organizer}${e.target_interests && e.target_interests.length > 0 ? ` | Target Interests: ${e.target_interests.join(", ")}` : ""} | ${e.description}`
       ).join("\n");
       contextParts.push(`## Upcoming Events\n${eventText}`);
     } else {

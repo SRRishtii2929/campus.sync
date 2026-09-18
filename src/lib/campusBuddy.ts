@@ -28,14 +28,68 @@ const WELCOME_LINKS = [
 ];
 
 const COMMON_QUESTIONS = [
-  { label: 'Class Representative Updates' },
-  { label: 'New Notices' },
-  { label: 'Society Announcements' },
-  { label: 'Upcoming Events' },
-  { label: 'Clashes' },
-  { label: 'Notifications' },
   { label: 'New Here?' },
 ] as const;
+
+export function getRoleAwareQuestions(profile: Profile | null): { label: string }[] {
+  if (!profile) {
+    return [
+      { label: 'What is CampusSync?' },
+      { label: 'What events are happening this week?' },
+      { label: 'What new notices are there?' },
+    ];
+  }
+
+  switch (profile.role) {
+    case 'student': {
+      const base = [
+        { label: "What's important today?" },
+        { label: 'What deadlines are coming up?' },
+        { label: 'What events are happening this week?' },
+        { label: 'What did I miss this week?' },
+        { label: "Are there any opportunities for me?" },
+        { label: "What's new?" },
+      ];
+      if (profile.student_type === 'cr') {
+        base.push(
+          { label: 'What class updates were posted?' },
+          { label: 'Are there any recent updates for my class?' },
+        );
+      }
+      return base;
+    }
+    case 'society_admin':
+      return [
+        { label: 'What events are happening this week?' },
+        { label: 'What upcoming campus activities are there?' },
+        { label: 'What important college notices are there?' },
+        { label: 'Are there any upcoming deadlines?' },
+        { label: "What's new on campus?" },
+      ];
+    case 'college_admin':
+      return [
+        { label: 'What are the latest official notices?' },
+        { label: 'What upcoming events are scheduled?' },
+        { label: 'What important deadlines are coming up?' },
+        { label: 'What recent announcements were posted?' },
+        { label: 'Are there any pending updates I should know about?' },
+      ];
+    case 'primary_admin':
+      return [
+        { label: 'What are the latest official notices?' },
+        { label: 'What upcoming events are scheduled?' },
+        { label: 'Are there any pending administrator requests?' },
+        { label: 'What recent campus announcements are there?' },
+        { label: 'What important updates should I know about?' },
+      ];
+    default:
+      return [
+        { label: 'What events are happening this week?' },
+        { label: 'What new notices are there?' },
+        { label: "What's new?" },
+      ];
+  }
+}
 
 const FALLBACK_RESPONSE: BuddyResponse = {
   text: `I'm having trouble connecting to the AI assistant right now. Here are some quick links you can use directly:`,

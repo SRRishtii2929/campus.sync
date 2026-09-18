@@ -22,5 +22,12 @@ export function ProtectedRoute({ children, roles }: { children: ReactNode; roles
     return <Navigate to="/dashboard" replace />;
   }
 
+  // Block pending/rejected college_admins from accessing admin functionality
+  if (profile?.role === 'college_admin' && profile.approval_status !== 'approved') {
+    if (roles?.includes('college_admin') || roles?.includes('primary_admin')) {
+      return <Navigate to="/dashboard" replace />;
+    }
+  }
+
   return <>{children}</>;
 }
