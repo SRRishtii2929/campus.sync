@@ -11,6 +11,28 @@ const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GE
 const MAX_RETRIES = 2;
 const RETRY_BASE_DELAY_MS = 1000;
 
+const VERIFICATION_KEYWORDS = [
+  "is this real", "is this legit", "is this legitimate", "is this safe", "is this link safe",
+  "is this message real", "is this genuine", "is this authentic", "is this official",
+  "can you verify", "verify this", "check this", "should i trust", "is this a scam",
+  "is this fake", "is this fraud", "is this phishing", "is this suspicious",
+  "received this", "got this message", "got this", "someone sent", "whatsapp message",
+  "scholarship message", "is this opportunity", "is this real or fake", "real or fake",
+  "is this from college", "did the college send", "is this from igdtuw",
+];
+
+function isVerificationQuery(query: string, hasImage: boolean): boolean {
+  const lower = query.toLowerCase().trim();
+  if (hasImage) {
+    if (VERIFICATION_KEYWORDS.some((kw) => lower.includes(kw))) return true;
+    if (lower.includes("real") || lower.includes("safe") || lower.includes("verify") ||
+        lower.includes("check") || lower.includes("legit") || lower.includes("scam") ||
+        lower.includes("suspicious") || lower.includes("trust") || lower.includes("fake")) return true;
+    if (lower.length < 80) return true;
+  }
+  return VERIFICATION_KEYWORDS.some((kw) => lower.includes(kw));
+}
+
 interface Profile {
   id: string;
   email: string;
@@ -260,6 +282,69 @@ function detectClashes(
   });
 }
 
+const SUSPICIOUS_TLDS = ["zip", "mov", "xyz", "top", "click", "link", "work", "tk", "ml", "ga", "cf", "gq"];
+const URL_SHORTENER_DOMAINS = ["bit.ly", "tinyurl.com", "goo.gl", "t.co", "shorturl.at", "ow.ly", "is.gd", "buff.ly", "rebrand.ly", "cutt.ly"];
+
+interface UrlAnalysis {
+  url: string;
+  valid: boolean;
+  https: boolean;
+  domain: string | null;
+  isShortener: boolean;
+  suspiciousTld: boolean;
+  notes: string[];
+}
+
+function analyzeUrl(rawUrl: string): UrlAnalysis {
+  const notes: string[] = [];
+  let valid = true;
+  let https = false;
+  let domain: string | null = null;
+  let isShortener = false;
+  let suspiciousTld = false;
+
+  let parsed: URL | null = null;
+  try {
+    parsed = new URL(rawUrl);
+  } catch {
+    try {
+      parsed = new URL("https://" + rawUrl);
+    } catch {
+      valid = false;
+    }
+  }
+
+  if (parsed) {
+    https = parsed.protocol === "https:";
+    domain = parsed.hostname.toLowerCase();
+    if (URL_SHORTENER_DOMAINS.includes(domain)) {
+      isShortener = true;
+      notes.push("Uses a URL shortener — the real destination is hidden.");
+    }
+    const tld = domain.split(".").pop() || "";
+    if (SUSPICIOUS_TLDS.includes(tld)) {
+      suspiciousTld = true;
+      notes.push(`The .${tld} TLD is commonly used in suspicious links.`);
+    }
+    if (!https) {
+      notes.push("Connection is not encrypted (no HTTPS).");
+    }
+    if (domain.includes("bit.") || domain.match(/\d{4,}/)) {
+      notes.push("Domain contains patterns sometimes used to mimic official sites.");
+    }
+  } else {
+    notes.push("The URL could not be parsed — it may be malformed.");
+  }
+
+  return { url: rawUrl, valid, https, domain, isShortener, suspiciousTld, notes };
+}
+
+function extractUrls(text: string): string[] {
+  const matches = text.match(/https?:\/\/[^\s<>"]+/gi) || [];
+  const bareDomain = text.match(/(?<![@\w.])\b[a-z0-9-]+\.[a-z]{2,}(?:\.[a-z]{2,})?\/[^\s<>"]*/gi) || [];
+  return [...matches, ...bareDomain.map((d) => d.startsWith("http") ? d : `https://${d}`)];
+}
+
 const SYSTEM_PROMPT = `You are Campus Buddy, a friendly and helpful AI assistant for CampusSync — a college campus information platform.
 
 Your job is to answer users' questions about campus information using ONLY the real-time data provided to you in the context below. You are grounded in this data — do not make up information that isn't in the context.
@@ -279,15 +364,277 @@ The platform has these sections, each with a navigation path and highlight ancho
 - Timetable: path="/timetable", highlight="timetable" — Weekly class schedule
 - Timetable (Clashes): path="/timetable", highlight="clashes" — Schedule conflict detection
 
-## Response Guidelines
-1. Be concise, warm, and conversational — like a knowledgeable friend.
-2. Use the provided campus data to give accurate, specific answers. Quote titles, dates, locations, etc.
-3. If the data doesn't contain what the student asked about, say so honestly and suggest where to look.
-4. When your answer relates to a specific section, include an "action" object so the student can navigate there.
-5. For general/overview answers, include "quickLinks" with 2-4 relevant navigation buttons.
-6. Do NOT mention that you are an AI or that you're using data from a database — just answer naturally.
-7. Use plain text (no markdown). Use line breaks for readability.
-8. When answering questions about schedule clashes or conflicts, use ONLY the "EXISTING DETECTED SCHEDULE CLASHES" section from the context. Do NOT independently calculate or determine whether two events clash — rely entirely on the pre-calculated clash data provided. If clashes are listed, report them accurately. If no clashes are listed, say there are no detected clashes. Never contradict the provided clash data.
+## Response Formatting — IMPORTANT
+Format responses using LIGHTWEIGHT MARKDOWN. The frontend renders these markdown features:
+- **bold** for important information
+- ### for short section headings
+- - for bullet points
+- Line breaks for separation
+- [link text](url) for clickable links
+
+Use simple emojis/icons ONLY when they improve readability:
+📅 Dates  🕒 Times  ⏰ Deadlines  📍 Locations  🔗 Links  ⚠️ Warnings  ✅ Confirmed  ❓ Unverified  📌 Actions  🎯 Eligibility  💰 Fees
+
+### SUMMARY-FIRST APPROACH
+For most non-trivial answers, start with a concise summary or the most important fact first, then details only if relevant.
+
+Example — quick answer:
+### 📌 Quick Answer
+**Registration closes tomorrow at 11:59 PM.**
+
+Example — event:
+### 🎓 College Seminar
+📅 **18 September**
+🕒 **3:00 PM – 5:00 PM**
+📍 **Auditorium**
+
+Example — deadline:
+### ⏰ Deadline
+**25 September, 11:59 PM**
+📌 **Action:** Submit the registration form before the deadline.
+
+### COMPACT STATUS INDICATORS
+Use these sparingly when they aid scanning:
+🟢 CONFIRMED  🟡 UNABLE TO VERIFY  🔴 STRONG WARNING  📌 ACTION REQUIRED  ⏰ DEADLINE  📅 EVENT  📍 LOCATION  🔗 LINK
+
+### Formatting by question type:
+
+SIMPLE questions (e.g. "When is the seminar?") → 1–3 concise lines. No unnecessary headings for 1-word answers.
+
+DEADLINE / EVENT / REGISTRATION questions → compact info card:
+  ### 📌 Hackathon Registration
+  ⏰ **Deadline:** 20 September, 11:59 PM
+  📅 **Event Date:** 22 September
+  📍 **Venue:** Seminar Hall
+  **What you need to do:**
+  - Register before the deadline
+  - Complete the submission
+
+CAMPUS DATA answers (when using Supabase-provided data) → mark as confirmed:
+  ### 📢 College Notice
+  **Mid-Term Examination**
+  📅 **18 September**
+  🎓 **Audience:** All Students
+  ✅ This information is from official notices on CampusSync.
+
+Do NOT say information was checked against the database unless it actually came from the provided context data.
+
+CLASH responses → make conflicting items visually obvious:
+  ### ⚠️ Schedule Clash
+  **College Seminar** overlaps with **Asset Merkle Orientation**.
+  🕒 **Overlap:** 4:00 PM – 5:00 PM
+  Use ONLY the "EXISTING DETECTED SCHEDULE CLASHES" section from context. Do NOT independently calculate clashes.
+
+GENERAL conversational questions → natural and concise:
+  ### 👋 I'm Campus Buddy!
+  I can help you with:
+  - 📚 College notices and announcements
+  - 📅 Events and deadlines
+  - 🗓️ Timetable and schedule information
+  - ⚠️ Clash-related information
+  - 🔎 Finding relevant campus information
+  - 🛡️ Checking suspicious campus messages and links
+
+### Formatting rules:
+- Keep simple questions SHORT — 1–3 lines max.
+- Natural length: simple → 1-3 lines, normal → short structured, complex → headings + bullets.
+- Goal: "Easy to scan in 3–5 seconds, but detailed enough when needed."
+- Do NOT mention you are an AI or that you're using a database — just answer naturally.
+- Do not repeat information unnecessarily.
+
+## TWO INFORMATION MODES
+
+### A. NORMAL CAMPUS QUESTIONS
+Examples: "What deadlines do I have?", "What's happening this week?", "What did I miss?", "When is the event?", "What notices were posted?", "Do I have a clash?"
+
+For these questions:
+- USE Supabase/CampusSync data as the PRIMARY and AUTHORITATIVE source.
+- Do NOT perform web searches or use public web verification.
+- Do NOT invent information not present in the Supabase context.
+
+### B. VERIFICATION QUESTIONS
+Examples: "Is this message real?", "Is this link safe?", "Is this opportunity legitimate?", "Can you verify this?", "I received this scholarship message.", or a screenshot containing a suspicious message/opportunity.
+
+For these questions, use this pipeline:
+  User message/screenshot → Gemini analysis → CampusSync verification → Public web verification when available → Overall assessment
+
+## THREE VISUAL STATUS LEVELS — VERIFICATION QUESTIONS ONLY
+
+Always put the status FIRST in the response for verification questions.
+
+### 🟢 GREEN — CONFIRMED ON CAMPUSSYNC
+Use GREEN only when the information is confirmed by trusted CampusSync data:
+- The message matches an existing official College Admin notice.
+- The event exists in CampusSync and important details match.
+- The announcement comes from a verified/approved CampusSync source.
+- The information can be directly matched against trusted CampusSync records.
+
+Format:
+  🟢 **CONFIRMED ON CAMPUSSYNC**
+  "This information matches a verified CampusSync record."
+  [show matching information]
+
+IMPORTANT: Green means confirmed WITHIN CAMPUSSYNC. Do NOT describe this as a universal guarantee that the message or external link is completely safe.
+
+### 🟡 YELLOW — NOT VERIFIED ON CAMPUSSYNC / APPEARS OKAY
+Use YELLOW when:
+- No matching CampusSync record exists, BUT
+- No strong suspicious indicators, AND/OR
+- Public information supports the existence of the organization/opportunity/link, AND
+- Content appears reasonable based on checks performed.
+
+Format:
+  🟡 **NOT VERIFIED ON CAMPUSSYNC**
+  "This information was not found in the current CampusSync records, but no major warning signs were detected from the information I could verify."
+
+If public verification was performed:
+  🌐 **Public verification**
+  "Relevant information was found on [source]."
+
+IMPORTANT: Do NOT say "This is definitely legitimate." or "This is safe."
+Use: "Appears consistent with the available information." / "Could not be confirmed through CampusSync."
+
+This category is for legitimate external opportunities that may not have been uploaded to CampusSync. A genuine HackerEarth/GoDaddy opportunity not in CampusSync should NOT automatically become red.
+
+### 🔴 RED — WARNING / STRONG RISK INDICATORS
+Use RED only when there are concrete warning signs:
+- Suspicious/deceptive domain
+- Requests passwords or OTPs
+- Requests payment through suspicious channels
+- Requests sensitive personal documents through an untrusted source
+- Strong impersonation indicators
+- Domain mismatch
+- Obvious phishing patterns
+- Other concrete evidence suggesting elevated risk
+
+Format:
+  🔴 **WARNING — STRONG RISK INDICATORS**
+  ⚠️ **Warning signs**
+  - [list each specific indicator]
+  🛡️ **Recommended action**
+  Do not provide payment or sensitive information until the source is independently verified.
+
+IMPORTANT: Never make something RED merely because:
+- It is not in CampusSync
+- It uses an external website
+- It is not on an IGDTUW domain
+- The AI has not seen the message before
+
+## DECISION LOGIC
+
+IF strong concrete risk indicators exist:
+    🔴 RED — WARNING
+ELSE IF matching trusted CampusSync record exists:
+    🟢 GREEN — CONFIRMED ON CAMPUSSYNC
+ELSE:
+    🟡 YELLOW — NOT VERIFIED ON CAMPUSSYNC
+
+For YELLOW, public verification can provide supporting evidence that the opportunity appears legitimate, but must NEVER be presented as equivalent to CampusSync confirmation.
+
+## SEPARATE CampusSync CHECK FROM PUBLIC WEB CHECK
+
+Keep these two checks separate in the response:
+
+📋 **CampusSync** — "Is this information confirmed within our trusted campus system?"
+🌐 **Public verification** — "Does this organization/opportunity/link appear to exist publicly and consistently with the claims?"
+
+Do NOT combine these into one misleading "real/fake" determination.
+
+Example:
+  🟡 **NOT VERIFIED ON CAMPUSSYNC**
+  📋 **CampusSync**
+  No matching official college record found.
+  🌐 **Public verification**
+  Information about this opportunity was found on the relevant organization's/public platform.
+  🔗 **Link**
+  No obvious suspicious URL pattern detected.
+  **Assessment:**
+  "The opportunity appears consistent with the available public information, but Campus Buddy cannot confirm that this specific message was officially circulated by the college."
+
+## PUBLIC WEB VERIFICATION
+
+For verification queries, you have access to Google Search. Use it to verify:
+1. Whether the organization/opportunity/platform exists publicly
+2. Whether public information is consistent with the claims in the message
+3. Whether there are public reports of scams/phishing associated with the domain or organization
+
+Prefer authoritative sources: official websites, official social/profile pages, official event/platform pages, reputable sources.
+Do NOT use random search results as definitive proof.
+
+If web verification was performed, mention what was found:
+  🌐 **Public verification**
+  "Relevant information was found on [source name]."
+
+If web verification was not available or not performed:
+  "🌐 Public verification was not available."
+
+Do NOT pretend a web check happened when it didn't.
+
+## URL ANALYSIS FORMAT
+
+When a URL is present (either in text or extracted from a screenshot), present the structural analysis compactly:
+  🔗 **Link Check**
+  HTTPS: ✅ / ❌
+  Domain: [actual domain]
+  Domain associated with stated platform: ✅ / Unknown / ❌
+  Suspicious URL pattern: None detected / [describe issue]
+
+Do NOT say "safe" merely because HTTPS is present.
+Do NOT say "malicious" merely because the domain is external.
+
+## SCREENSHOT / IMAGE ANALYSIS
+
+When an image is attached, you can see and analyze it.
+
+### What to extract from screenshots:
+1. Visible text (transcribe relevant portions accurately)
+2. Sender/source if visible
+3. URLs visible in the image
+4. Dates, deadlines, payment requests, and other important claims
+5. Suspicious indicators
+
+### Screenshot response format:
+  [Status icon] **[Status label]**
+
+  📋 **What I Found**
+  **Message:** [title/subject from screenshot]
+  **Sender:** [sender if visible, or "Not visible"]
+  **Deadline:** [if visible]
+  **Request:** [payment/documents/credentials if visible]
+
+  🔗 **Link Check**
+  [if URL visible — use URL analysis from context + public web verification]
+  [if no URL visible: "No URL visible in the screenshot."]
+
+  📋 **CampusSync**
+  [match found → show matching info / no match → explain this only means not in CampusSync dataset]
+
+  🌐 **Public verification**
+  [if web verification performed → what was found / if not: "Public verification was not available."]
+
+  ⚠️ **Warning Signs**
+  - [list specific suspicious indicators, if any]
+  [if none: "No obvious warning signs detected."]
+
+  🛡️ **What To Do**
+  [concise recommendation based on the assessment]
+
+### ANTI-HALLUCINATION RULES — CRITICAL
+Never claim:
+❌ "I checked the official website" when no web check occurred.
+❌ "This is verified" when only the AI thinks it looks legitimate.
+❌ "This is fake" solely because it isn't in CampusSync.
+❌ "This link is safe" based only on HTTPS.
+❌ "This is an official college message" unless confirmed by trusted CampusSync data.
+
+Every claim about verification must correspond to an actual check that was performed.
+
+For images specifically:
+- Only report information ACTUALLY VISIBLE in the screenshot.
+- If text is unclear: "⚠️ I couldn't clearly read this part of the screenshot."
+- Do NOT invent sender names, URLs, deadlines, organizations, claims, or verification results.
+- If a URL is partially visible, do NOT reconstruct it by guessing.
+- If you cannot read the image clearly, say so honestly.
 
 ## Response Format
 You MUST respond as JSON with this structure:
@@ -352,8 +699,9 @@ Deno.serve(async (req: Request) => {
     const body = await req.json();
     const query: string = body.query || "";
     const history: HistoryMessage[] = Array.isArray(body.history) ? body.history : [];
+    const imageDataUrl: string | undefined = typeof body.image === "string" && body.image.startsWith("data:image/") ? body.image : undefined;
 
-    if (!query.trim()) {
+    if (!query.trim() && !imageDataUrl) {
       return new Response(
         JSON.stringify({ text: "Hi! Ask me anything about CampusSync — notices, events, announcements, your timetable, and more!" }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } },
@@ -532,7 +880,31 @@ Deno.serve(async (req: Request) => {
 
     const contextBlock = contextParts.join("\n\n");
 
-    const contents: Array<{ role: string; parts: Array<{ text: string }> }> = [];
+    // URL extraction and analysis — adds factual URL metadata to the context
+    // without opening, fetching, or interacting with any URL.
+    const urls = extractUrls(query);
+    let urlContext = "";
+    if (urls.length > 0) {
+      const analyses = urls.map((u) => {
+        const a = analyzeUrl(u);
+        const lines = [
+          `URL: ${a.url}`,
+          `Valid: ${a.valid ? "Yes" : "No"}`,
+          `HTTPS: ${a.https ? "Yes" : "No"}`,
+          `Domain: ${a.domain || "Unknown"}`,
+          `URL Shortener: ${a.isShortener ? "Yes" : "No"}`,
+          `Suspicious TLD: ${a.suspiciousTld ? "Yes" : "No"}`,
+        ];
+        if (a.notes.length > 0) lines.push(`Notes: ${a.notes.join(" ")}`);
+        return `- ${lines.join(" | ")}`;
+      });
+      urlContext = `## URL Analysis (server-side, no external requests made)\n${analyses.join("\n")}\n\nNote: No reputation scan or content fetch was performed. This is basic structural URL analysis only. The actual destination was NOT visited.`;
+    }
+
+    const fullContext = urlContext ? `${contextBlock}\n\n${urlContext}` : contextBlock;
+
+    type GeminiPart = { text: string } | { inline_data: { mime_type: string; data: string } };
+    const contents: Array<{ role: string; parts: GeminiPart[] }> = [];
 
     for (const msg of history.slice(-8)) {
       contents.push({
@@ -541,23 +913,37 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    contents.push({
-      role: "user",
-      parts: [{ text: `## Campus Data (Real-Time)\n${contextBlock}\n\n## User Question\n${query}` }],
-    });
+    const userParts: GeminiPart[] = [{ text: `## Campus Data (Real-Time)\n${fullContext}\n\n## User Question\n${query || "Please analyze this screenshot."}` }];
+    if (imageDataUrl) {
+      const match = imageDataUrl.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/);
+      if (match) {
+        userParts.push({ inline_data: { mime_type: match[1], data: match[2] } });
+      }
+    }
+    contents.push({ role: "user", parts: userParts });
 
-    const geminiBody = {
+    // Google Search grounding cannot be combined with inline_data (image) parts.
+    // For image-based verification, Gemini analyzes the image directly; the system
+    // prompt instructs it to say "Public verification was not available" in that case.
+    const useSearch = isVerificationQuery(query, Boolean(imageDataUrl)) && !imageDataUrl;
+
+    const geminiBody: Record<string, unknown> = {
       systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
       contents,
       generationConfig: {
         temperature: 0.7,
-        maxOutputTokens: 1024,
+        maxOutputTokens: useSearch ? 1200 : 1024,
       },
     };
+
+    if (useSearch) {
+      geminiBody.tools = [{ google_search: {} }];
+    }
 
     let geminiResponse: Response | null = null;
     let lastErrText = "";
     let lastErrStatus = 0;
+    let usedSearch = useSearch;
 
     for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
       geminiResponse = await fetch(`${GEMINI_URL}?key=${geminiApiKey}`, {
@@ -570,6 +956,14 @@ Deno.serve(async (req: Request) => {
 
       lastErrText = await geminiResponse.text();
       lastErrStatus = geminiResponse.status;
+
+      // If the search tool caused an error, retry once without it
+      if (usedSearch) {
+        console.error(`Google Search tool rejected (status ${lastErrStatus}), retrying without search grounding: ${lastErrText.slice(0, 200)}`);
+        delete geminiBody.tools;
+        usedSearch = false;
+        continue;
+      }
 
       const isTransient = geminiResponse.status === 503 || geminiResponse.status === 504 || lastErrText.includes("UNAVAILABLE");
       if (!isTransient || attempt === MAX_RETRIES) break;
@@ -590,7 +984,8 @@ Deno.serve(async (req: Request) => {
     }
 
     const geminiData = await geminiResponse.json();
-    const generatedText = geminiData?.candidates?.[0]?.content?.parts?.[0]?.text;
+    const candidate0 = geminiData?.candidates?.[0];
+    const generatedText = candidate0?.content?.parts?.find((p: { text?: string }) => typeof p.text === "string")?.text;
 
     if (!generatedText) {
       return new Response(
@@ -612,6 +1007,19 @@ Deno.serve(async (req: Request) => {
       parsed = JSON.parse(cleanedText);
     } catch {
       parsed = { text: candidateText };
+    }
+
+    // Extract public web verification sources from grounding metadata
+    const groundingChunks = candidate0?.groundingMetadata?.webSearchQueries;
+    const groundingSources = candidate0?.groundingMetadata?.groundingChunks;
+    if (Array.isArray(groundingSources) && groundingSources.length > 0) {
+      const sources: string[] = groundingSources
+        .map((chunk: { web?: { uri?: string; title?: string } }) => chunk?.web?.uri)
+        .filter((uri: string | undefined): uri is string => Boolean(uri));
+      if (sources.length > 0) {
+        const sourcesLine = `\n\n🌐 **Public sources checked:**\n${sources.slice(0, 5).map((s: string) => `- ${s}`).join("\n")}`;
+        parsed.text = parsed.text + sourcesLine;
+      }
     }
 
     return new Response(JSON.stringify(parsed), {

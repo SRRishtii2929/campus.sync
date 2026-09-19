@@ -30,8 +30,15 @@ export default function Navbar() {
     setShowSignOutLoader(true);
   };
 
-  const completeSignOut = () => {
-    void signOut().then(() => navigate('/'));
+  const completeSignOut = async () => {
+    try {
+      await signOut();
+    } catch {
+      // signOut handles its own errors internally; proceed with navigation
+    } finally {
+      setShowSignOutLoader(false);
+      navigate('/');
+    }
   };
 
   const isStudent = profile?.role === 'student';
@@ -164,7 +171,7 @@ export default function Navbar() {
 
   return (
     <nav className="sticky top-0 z-50 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 shadow-sm">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           <Link to="/" className="flex items-center group" aria-label="CampusSync home">
             <CampusSyncBrand compact className="group-hover:scale-[1.02] transition-transform" />

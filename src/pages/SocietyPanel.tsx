@@ -3,12 +3,15 @@ import { Link } from 'react-router-dom';
 import { supabase, type Announcement } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
 import { formatDate } from '@/lib/clashDetection';
-import { Megaphone, TrendingUp, AlertCircle, Clock4, CheckCircle2, XCircle } from 'lucide-react';
+import { Megaphone, TrendingUp, AlertCircle, Clock4, CheckCircle2, XCircle, Trash2, Loader2 } from 'lucide-react';
 
 export default function SocietyPanel() {
   const { profile } = useAuth();
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [loading, setLoading] = useState(true);
+  const [deleting, setDeleting] = useState<string | null>(null);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
 
   useEffect(() => {
     async function loadData() {
@@ -18,6 +21,23 @@ export default function SocietyPanel() {
     }
     loadData();
   }, []);
+
+  async function handleDelete(id: string) {
+    if (!confirm('Delete this announcement? This will remove it from the student feed as well.')) return;
+    setDeleting(id);
+    setError('');
+    setSuccess('');
+    const { error: delError } = await supabase.from('announcements').delete().eq('id', id);
+    if (delError) {
+      setError('Failed to delete: ' + delError.message);
+      setTimeout(() => setError(''), 5000);
+    } else {
+      setAnnouncements((prev) => prev.filter((a) => a.id !== id));
+      setSuccess('Announcement deleted successfully.');
+      setTimeout(() => setSuccess(''), 5000);
+    }
+    setDeleting(null);
+  }
 
   if (loading) {
     return (
@@ -33,7 +53,7 @@ export default function SocietyPanel() {
   const isRejected = profile?.approval_status === 'rejected';
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-slate-800 dark:text-slate-200">Society Admin Panel</h1>
         <p className="text-slate-500 dark:text-slate-400 mt-1">Manage your society announcements · {profile?.society_name || profile?.full_name}</p>
@@ -48,7 +68,7 @@ export default function SocietyPanel() {
          isPending ? <Clock4 className="w-5 h-5 text-orange-600 dark:text-orange-400 flex-shrink-0" /> :
          <XCircle className="w-5 h-5 text-red-600 flex-shrink-0" />}
         <div>
-          {isApproved && <p className="text-sm font-medium text-green-800">Approved — You can publish and manage announcements.</p>}
+          {isApproved && <p className="text-sm font-medium text-green-800 dark:text-green-300">Approved — You can publish and manage announcements.</p>}
           {isPending && <p className="text-sm font-medium text-orange-800 dark:text-orange-300">Pending Approval — Your account is awaiting College Admin approval. You cannot publish until approved.</p>}
           {isRejected && <p className="text-sm font-medium text-red-800">Rejected — Your Society Admin request was rejected. Please contact a College Admin.</p>}
         </div>
@@ -92,9 +112,21 @@ export default function SocietyPanel() {
         ) : (
           <div className="space-y-2">
             {myAnnouncements.map((a) => (
-              <div key={a.id} className="p-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-purple-50/30">
-                <p className="text-sm font-medium text-slate-800 dark:text-slate-200">{a.title}</p>
-                <p className="text-xs text-slate-500 dark:text-slate-400">{a.society_name} · {formatDate(a.date)}</p>
+              <div key={a.id} className="flex items-center justify-between gap-2 p-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-purple-50/30 dark:bg-purple-950/20">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-slate-800 dark:text-slate-200">{a.title}</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">{a.society_name} · {formatDate(a.date)}</p>
+                </div>
+                {isApproved && (
+                  <button
+                    onClick={() => handleDelete(a.id)}
+                    disabled={deleting === a.id}
+                    className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors disabled:opacity-50 flex-shrink-0"
+                  >
+                    {deleting === a.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                    Delete
+                  </button>
+                )}
               </div>
             ))}
           </div>

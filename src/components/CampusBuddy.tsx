@@ -2,11 +2,13 @@ import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { getBuddyResponse, getRoleAwareQuestions, type BuddyResponse, type HistoryMessage } from '@/lib/campusBuddy';
-import { X, Send, Sparkles, ArrowRight, LogIn } from 'lucide-react';
+import { X, Send, Sparkles, ArrowRight, LogIn, ImagePlus, Trash2 } from 'lucide-react';
+import BuddyMessageText, { getVerificationStatus } from './BuddyMessageText';
 
 interface ChatMessage {
   role: 'user' | 'buddy';
   text: string;
+  imageUrl?: string;
   action?: { path: string; highlight: string; label: string };
   quickLinks?: { label: string; path: string; highlight: string }[];
   showLogin?: boolean;
@@ -55,14 +57,37 @@ export default function CampusBuddy() {
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState('');
   const [thinking, setThinking] = useState(false);
+  const [pendingImage, setPendingImage] = useState<string | null>(null);
   const isLoggedIn = Boolean(session);
   const [messages, setMessages] = useState<ChatMessage[]>([GREETING]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const MAX_IMAGE_BYTES = 4 * 1024 * 1024;
+
+  function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > MAX_IMAGE_BYTES) {
+      setMessages((prev) => [...prev, { role: 'buddy', text: '⚠️ That image is too large. Please upload an image under 4 MB.' }]);
+      e.target.value = '';
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === 'string') {
+        setPendingImage(reader.result);
+      }
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  }
 
   useEffect(() => {
     if (open) {
       setMessages(isLoggedIn ? [GREETING] : [LOGGED_OUT_GREETING]);
       setInput('');
+      setPendingImage(null);
       setThinking(false);
     }
   }, [open, isLoggedIn]);
@@ -73,13 +98,14 @@ export default function CampusBuddy() {
     }
   }, [messages, thinking]);
 
-  async function handleSend(query: string) {
-    if (!query.trim()) return;
+  async function handleSend(query: string, image?: string) {
+    if (!query.trim() && !image) return;
 
     if (!isLoggedIn) {
-      const userMsg: ChatMessage = { role: 'user', text: query };
+      const userMsg: ChatMessage = { role: 'user', text: query, imageUrl: image || undefined };
       setMessages((prev) => [...prev, userMsg]);
       setInput('');
+      setPendingImage(null);
       setThinking(true);
       setTimeout(() => {
         setThinking(false);
@@ -88,13 +114,14 @@ export default function CampusBuddy() {
       return;
     }
 
-    const userMsg: ChatMessage = { role: 'user', text: query };
+    const userMsg: ChatMessage = { role: 'user', text: query, imageUrl: image || undefined };
     setMessages((prev) => [...prev, userMsg]);
     setInput('');
+    setPendingImage(null);
     setThinking(true);
 
     const history: HistoryMessage[] = messages.map((m) => ({ role: m.role, text: m.text }));
-    const response: BuddyResponse = await getBuddyResponse(query, profile, history);
+    const response: BuddyResponse = await getBuddyResponse(query, profile, history, image);
     setThinking(false);
 
     const buddyMsg: ChatMessage = {
@@ -117,6 +144,7 @@ export default function CampusBuddy() {
   function handleClose() {
     setMessages(isLoggedIn ? [GREETING] : [LOGGED_OUT_GREETING]);
     setInput('');
+    setPendingImage(null);
     setThinking(false);
     setOpen(false);
   }
@@ -159,13 +187,31 @@ export default function CampusBuddy() {
 
           {/* Messages */}
           <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3 bg-slate-50 dark:bg-slate-900">
-            {messages.map((msg, i) => (
-              <div key={i} className={msg.role === 'user' ? 'flex justify-end' : 'flex justify-start'}>
-                <div className={msg.role === 'user'
-                  ? 'max-w-[85%] px-3.5 py-2.5 rounded-2xl rounded-br-md bg-teal-600 text-white text-sm'
-                  : 'max-w-[88%] px-3.5 py-2.5 rounded-2xl rounded-bl-md bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-200 text-sm'
-                }>
-                  <p className="whitespace-pre-line leading-relaxed">{msg.text}</p>
+            {messages.map((msg, i) => {
+              const status = msg.role === 'buddy' ? getVerificationStatus(msg.text) : null;
+              const bubbleBorder = status === 'red'
+                ? 'border-red-300 dark:border-red-800 border-l-4 border-l-red-500'
+                : status === 'yellow'
+                ? 'border-amber-300 dark:border-amber-800 border-l-4 border-l-amber-500'
+                : status === 'green'
+                ? 'border-green-300 dark:border-green-800 border-l-4 border-l-green-500'
+                : '';
+              return (
+                <div key={i} className={msg.role === 'user' ? 'flex justify-end' : 'flex justify-start'}>
+                  <div className={msg.role === 'user'
+                    ? 'max-w-[85%] px-3.5 py-2.5 rounded-2xl rounded-br-md bg-teal-600 text-white text-sm'
+                    : `max-w-[88%] px-3.5 py-2.5 rounded-2xl rounded-bl-md bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-200 text-sm ${bubbleBorder}`
+                  }>
+                  {msg.imageUrl && (
+                    <img
+                      src={msg.imageUrl}
+                      alt="Uploaded"
+                      className="mb-2 max-h-40 rounded-lg object-cover w-full"
+                    />
+                  )}
+                  {msg.role === 'buddy'
+                    ? <BuddyMessageText text={msg.text} />
+                    : <p className="whitespace-pre-line leading-relaxed">{msg.text}</p>}
 
                   {msg.showLogin && (
                     <button
@@ -200,7 +246,8 @@ export default function CampusBuddy() {
                   )}
                 </div>
               </div>
-            ))}
+              );
+            })}
 
             {thinking && (
               <div className="flex justify-start">
@@ -256,23 +303,53 @@ export default function CampusBuddy() {
           <div className="px-3 py-3 bg-white dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700">
             {isLoggedIn ? (
               <form
-                onSubmit={(e) => { e.preventDefault(); handleSend(input); }}
-                className="flex items-center gap-2"
+                onSubmit={(e) => { e.preventDefault(); handleSend(input, pendingImage || undefined); }}
+                className="space-y-2"
               >
-                <input
-                  type="text"
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  placeholder="Ask Campus Buddy anything..."
-                  className="flex-1 px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 text-sm focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 outline-none"
-                />
-                <button
-                  type="submit"
-                  disabled={!input.trim() || thinking}
-                  className="p-2.5 rounded-xl bg-teal-600 text-white hover:bg-teal-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <Send className="w-4 h-4" />
-                </button>
+                {pendingImage && (
+                  <div className="flex items-center gap-2 px-2 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-700 border border-slate-200 dark:border-slate-600">
+                    <img src={pendingImage} alt="To send" className="w-10 h-10 rounded object-cover flex-shrink-0" />
+                    <span className="text-xs text-slate-500 dark:text-slate-400 flex-1 truncate">Image attached</span>
+                    <button
+                      type="button"
+                      onClick={() => setPendingImage(null)}
+                      className="p-1 rounded text-slate-400 hover:text-red-500 transition-colors"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
+                <div className="flex items-center gap-2">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp,image/gif"
+                    onChange={handleFileSelect}
+                    className="hidden"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="p-2.5 rounded-xl text-slate-400 hover:text-teal-600 dark:hover:text-teal-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors flex-shrink-0"
+                    title="Upload image"
+                  >
+                    <ImagePlus className="w-5 h-5" />
+                  </button>
+                  <input
+                    type="text"
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    placeholder={pendingImage ? "Ask about this image..." : "Ask Campus Buddy anything..."}
+                    className="flex-1 px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 text-sm focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 outline-none"
+                  />
+                  <button
+                    type="submit"
+                    disabled={(!input.trim() && !pendingImage) || thinking}
+                    className="p-2.5 rounded-xl bg-teal-600 text-white hover:bg-teal-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <Send className="w-4 h-4" />
+                  </button>
+                </div>
               </form>
             ) : (
               <div className="flex items-center justify-center gap-2 py-2 text-sm text-slate-400 dark:text-slate-500">

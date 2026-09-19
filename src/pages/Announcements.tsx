@@ -50,7 +50,7 @@ export default function Announcements() {
 
   const isApprovedSocietyAdmin = profile?.role === 'society_admin' && profile?.approval_status === 'approved';
   const canCreate = isApprovedSocietyAdmin;
-  const canDelete = isApprovedSocietyAdmin || profile?.role === 'college_admin';
+  const canDelete = isApprovedSocietyAdmin || profile?.role === 'college_admin' || profile?.role === 'primary_admin';
   const isStudent = profile?.role === 'student';
   const isPendingSocietyAdmin = profile?.role === 'society_admin' && profile?.approval_status !== 'approved';
   useHighlight();
@@ -469,7 +469,7 @@ export default function Announcements() {
                         <Megaphone className="w-3 h-3" /> {ann.society_name}
                       </span>
                     </div>
-                    {canDelete && (ann.created_by === profile?.id || profile?.role === 'college_admin') && (
+                    {canDelete && (ann.created_by === profile?.id || profile?.role === 'college_admin' || profile?.role === 'primary_admin') && (
                       <div className="flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
                         {ann.created_by === profile?.id && (
                           <button onClick={() => handleEdit(ann)} className="p-1.5 rounded-lg text-teal-600 dark:text-teal-400 hover:bg-teal-50 dark:bg-teal-900/30">

@@ -210,7 +210,7 @@ export default function Events() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
         <div>
           <h1 className="text-3xl font-bold text-slate-800 dark:text-slate-200">College Events</h1>
@@ -370,7 +370,7 @@ export default function Events() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="space-y-4">
         {events.length === 0 ? (
           <div className="col-span-full text-center py-16">
             <Users className="w-12 h-12 text-slate-300 dark:text-slate-600 mx-auto mb-4" />
@@ -387,8 +387,11 @@ export default function Events() {
                   {/* Details (left on desktop, top on mobile) */}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between gap-2 mb-3">
-                      <div className="flex-1">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200">{evt.title}</h3>
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-teal-100 dark:bg-teal-900/40 text-teal-700 dark:text-teal-300">
+                          <Calendar className="w-3 h-3" /> College Event
+                        </span>
                         {hasClash && (
                           <span className="inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded-full text-xs font-bold bg-red-600 text-white">
                             <AlertTriangle className="w-3 h-3" /> Clash Detected
@@ -418,7 +421,7 @@ export default function Events() {
                         </div>
                       )}
                     </div>
-                    <div className="space-y-1.5 text-xs text-slate-500 dark:text-slate-400">
+                    <div className="flex flex-wrap gap-x-4 gap-y-1 mt-3 text-xs text-slate-500 dark:text-slate-400">
                       <p className="flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5" /> {formatDate(evt.date)}</p>
                       <p className="flex items-center gap-1.5"><Clock className="w-3.5 h-3.5" /> {formatTime12(evt.start_time)} – {formatTime12(evt.end_time)}</p>
                       <p className="flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5" /> {evt.location}</p>
@@ -434,7 +437,7 @@ export default function Events() {
                   {/* Image (right on desktop, below on mobile) */}
                   {evt.image_path && (
                     <div className="sm:w-56 sm:flex-shrink-0">
-                      <ImagePreview path={evt.image_path} alt={evt.title} maxHeight="max-h-56" />
+                      <ImagePreview path={evt.image_path} alt={evt.title} maxHeight="max-h-60" />
                     </div>
                   )}
                 </div>

@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { supabase, type Notice, type EventEntry, type Profile } from '@/lib/supabase';
+import { supabase, type Notice, type EventEntry, type Profile, type Announcement } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
 import { formatDate } from '@/lib/clashDetection';
-import { Bell, Users, ClipboardList, TrendingUp, Calendar, AlertCircle, CheckCircle2, XCircle, Loader2, UserCheck, Clock, Trash2, UserCog, Shield, ShieldCheck, Crown } from 'lucide-react';
+import { Bell, Users, ClipboardList, TrendingUp, Calendar, AlertCircle, CheckCircle2, XCircle, Loader2, UserCheck, Clock, Trash2, UserCog, Shield, ShieldCheck, Crown, Megaphone } from 'lucide-react';
 
 export default function AdminPanel() {
   const { profile } = useAuth();
@@ -15,6 +15,7 @@ export default function AdminPanel() {
   const [pendingCollegeAdmins, setPendingCollegeAdmins] = useState<Profile[]>([]);
   const [primaryAdmins, setPrimaryAdmins] = useState<Profile[]>([]);
   const [collegeAdmins, setCollegeAdmins] = useState<Profile[]>([]);
+  const [societyAnnouncements, setSocietyAnnouncements] = useState<Announcement[]>([]);
   const [primaryAdminCount, setPrimaryAdminCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [approving, setApproving] = useState<string | null>(null);
@@ -32,6 +33,7 @@ export default function AdminPanel() {
         supabase.from('events').select('*').order('date'),
         supabase.from('profiles').select('*').in('approval_status', ['pending', 'rejected']).order('created_at', { ascending: false }),
         supabase.from('profiles').select('*').in('role', ['student', 'society_admin']).order('created_at', { ascending: false }),
+        supabase.from('announcements').select('*').order('date', { ascending: false }),
       ];
 
       if (isPrimaryAdmin) {
@@ -46,11 +48,12 @@ export default function AdminPanel() {
         );
       }
 
-        const [noticeRes, eventRes, pendingRes, accountRes, pendingAdminRes, primaryAdminRes, collegeAdminRes] = await Promise.all(queries);
+        const [noticeRes, eventRes, pendingRes, accountRes, annRes, pendingAdminRes, primaryAdminRes, collegeAdminRes] = await Promise.all(queries);
         setNotices(noticeRes.data || []);
         setEvents(eventRes.data || []);
         setPendingUsers(pendingRes.data || []);
         setAllAccounts(accountRes.data || []);
+        setSocietyAnnouncements(annRes.data || []);
 
         if (isPrimaryAdmin) {
           setPendingCollegeAdmins(pendingAdminRes.data || []);
@@ -210,6 +213,23 @@ export default function AdminPanel() {
     setPromoting(null);
   }
 
+  async function handleDeleteAnnouncement(id: string) {
+    if (!confirm('Delete this society announcement? This will remove it from the student feed.')) return;
+    setDeleting(id);
+    setDeleteError('');
+    setDeleteSuccess('');
+    const { error } = await supabase.from('announcements').delete().eq('id', id);
+    if (error) {
+      setDeleteError('Failed to delete announcement: ' + error.message);
+      setTimeout(() => setDeleteError(''), 5000);
+    } else {
+      setSocietyAnnouncements((prev) => prev.filter((a) => a.id !== id));
+      setDeleteSuccess('Society announcement deleted.');
+      setTimeout(() => setDeleteSuccess(''), 5000);
+    }
+    setDeleting(null);
+  }
+
   async function handleDeleteAccount(userId: string, displayName: string) {
     const confirmed = window.confirm(
       `Are you sure you want to permanently delete this account? The profile and login credentials will be permanently removed.`
@@ -269,7 +289,7 @@ export default function AdminPanel() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-slate-800 dark:text-slate-200">
           {isPrimaryAdmin ? 'Primary Admin Panel' : 'College Admin Panel'}
@@ -613,6 +633,37 @@ export default function AdminPanel() {
       {/* Account Management */}
       <div className="mt-6 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6 shadow-sm">
         <div className="flex items-center gap-2 mb-1">
+          <Megaphone className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+          <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-200">Society Announcement Moderation</h2>
+        </div>
+        <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">View and delete any society announcement. Deleting removes it from the student feed immediately.</p>
+        {societyAnnouncements.length === 0 ? (
+          <p className="text-sm text-slate-400 dark:text-slate-500 py-6 text-center">No society announcements found.</p>
+        ) : (
+          <div className="space-y-2">
+            {societyAnnouncements.slice(0, 10).map((a) => (
+              <div key={a.id} className="flex items-center justify-between gap-2 p-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-purple-50/30 dark:bg-purple-950/20">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-slate-800 dark:text-slate-200">{a.title}</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">{a.society_name} · {formatDate(a.date)}</p>
+                </div>
+                <button
+                  onClick={() => handleDeleteAnnouncement(a.id)}
+                  disabled={deleting === a.id}
+                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors disabled:opacity-50 flex-shrink-0"
+                >
+                  {deleting === a.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                  Delete
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Account Management */}
+      <div className="mt-6 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6 shadow-sm">
+        <div className="flex items-center gap-2 mb-1">
           <UserCog className="w-5 h-5 text-teal-600 dark:text-teal-400" />
           <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-200">Account Management</h2>
         </div>
@@ -701,6 +752,7 @@ export default function AdminPanel() {
             <ul className="text-sm text-slate-600 dark:text-slate-300 mt-2 space-y-1">
               <li>• Create, edit, and delete official college notices</li>
               <li>• Create, edit, and delete college events</li>
+              <li>• Delete any society announcement for moderation</li>
               <li>• Approve or reject Society Admin and CR requests</li>
               <li>• Manage and permanently delete student and society admin accounts</li>
               <li>• Notices are visible to all students and society administrators</li>

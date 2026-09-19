@@ -122,14 +122,15 @@ export async function getBuddyResponse(
   query: string,
   profile: Profile | null,
   history?: HistoryMessage[],
+  image?: string,
 ): Promise<BuddyResponse> {
   const trimmed = query.trim();
-  if (!trimmed) {
+  if (!trimmed && !image) {
     return { text: 'Hi! Ask me anything about CampusSync \u2014 try "Where are my notices?" or click a question below.' };
   }
 
   const lower = trimmed.toLowerCase();
-  if (lower.includes('new here') || lower.includes('getting started') || lower.includes('what is campus') || lower.includes('what is this') || lower.includes('help me') || lower.includes('guide')) {
+  if (!image && (lower.includes('new here') || lower.includes('getting started') || lower.includes('what is campus') || lower.includes('what is this') || lower.includes('help me') || lower.includes('guide'))) {
     return { text: WELCOME_TEXT, quickLinks: WELCOME_LINKS };
   }
 
@@ -140,6 +141,14 @@ export async function getBuddyResponse(
       return FALLBACK_RESPONSE;
     }
 
+    const requestBody: Record<string, unknown> = {
+      query: trimmed,
+      history: (history || []).slice(-8).map((m) => ({ role: m.role, text: m.text })),
+    };
+    if (image) {
+      requestBody.image = image;
+    }
+
     const response = await fetch(
       `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/campus-buddy-ai`,
       {
@@ -148,10 +157,7 @@ export async function getBuddyResponse(
           'Content-Type': 'application/json',
           Authorization: `Bearer ${accessToken}`,
         },
-        body: JSON.stringify({
-          query: trimmed,
-          history: (history || []).slice(-8).map((m) => ({ role: m.role, text: m.text })),
-        }),
+        body: JSON.stringify(requestBody),
       },
     );
 

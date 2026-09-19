@@ -64,9 +64,9 @@ export default function About() {
           ].map((item) => {
             const Icon = item.icon;
             return (
-              <div key={item.label} className="flex items-center gap-3 p-4 rounded-xl bg-white dark:bg-slate-800 border border-slate-700">
-                <Icon className="w-5 h-5 text-teal-300" />
-                <span className="text-sm font-medium text-white">{item.label}</span>
+              <div key={item.label} className="flex items-center gap-3 p-4 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                <Icon className="w-5 h-5 text-teal-600 dark:text-teal-400" />
+                <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{item.label}</span>
               </div>
             );
           })}

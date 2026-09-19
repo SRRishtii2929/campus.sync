@@ -4,7 +4,7 @@ import CampusSyncBrand from '@/components/CampusSyncBrand';
 export default function Footer() {
   return (
     <footer className="bg-slate-900 dark:bg-black text-slate-300 dark:text-slate-400 mt-auto">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           <div>
             <div className="mb-4 dark">

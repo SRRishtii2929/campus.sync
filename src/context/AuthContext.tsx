@@ -178,13 +178,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   async function signOut() {
-    if (user?.id) {
-      await supabase.from('chatbot_history').delete().eq('user_id', user.id);
+    try {
+      if (user?.id) {
+        await supabase.from('chatbot_history').delete().eq('user_id', user.id);
+      }
+    } catch {
+      // Best-effort cleanup; don't block logout
     }
-    await supabase.auth.signOut();
-    setProfile(null);
-    setSession(null);
-    setUser(null);
+    try {
+      await supabase.auth.signOut();
+    } catch {
+      // signOut error — still clear local state below
+    } finally {
+      setProfile(null);
+      setSession(null);
+      setUser(null);
+      setLoading(false);
+    }
   }
 
   async function refreshProfile() {
