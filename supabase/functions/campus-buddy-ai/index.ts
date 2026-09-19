@@ -66,10 +66,22 @@ interface ServerEventEntry {
   title: string;
   description: string;
   date: string;
+  event_date: string | null;
   start_time: string;
   end_time: string;
   location: string;
   organizer: string;
+}
+
+interface ServerCrUpdate {
+  id: string;
+  subject: string;
+  date: string;
+  start_time: string;
+  end_time: string | null;
+  location: string | null;
+  update_type: string;
+  description: string;
 }
 
 interface ServerAnnouncement {
@@ -128,10 +140,20 @@ function sameDayOfWeek(dayOfWeek: string, dateStr: string): boolean {
   return days[date.getDay()] === dayOfWeek;
 }
 
+function getEventDate(evt: ServerEventEntry): string {
+  return evt.event_date || evt.date;
+}
+
+function isScheduleRelevantCr(cr: ServerCrUpdate): boolean {
+  const type = cr.update_type.toLowerCase();
+  return type.includes('extra') || type.includes('class') || type.includes('reschedul') || type.includes('room');
+}
+
 function detectClashes(
   classes: ServerClassEntry[],
   events: ServerEventEntry[],
-  announcements: ServerAnnouncement[]
+  announcements: ServerAnnouncement[],
+  crUpdates?: ServerCrUpdate[]
 ): ClashDetail[] {
   const clashes: ClashDetail[] = [];
 
@@ -162,17 +184,18 @@ function detectClashes(
 
   for (const cls of classes) {
     for (const evt of events) {
-      if (cls.date && sameDate(cls.date, evt.date)) {
+      const evtDate = getEventDate(evt);
+      if (cls.date && sameDate(cls.date, evtDate)) {
         if (rangesOverlap(toMinutes(cls.start_time), toMinutes(cls.end_time), toMinutes(evt.start_time), toMinutes(evt.end_time))) {
           const overlapStart = Math.max(toMinutes(cls.start_time), toMinutes(evt.start_time));
           const overlapEnd = Math.min(toMinutes(cls.end_time), toMinutes(evt.end_time));
           clashes.push({
             type: "class_event",
-            activityA: { label: cls.subject, date: evt.date, start: cls.start_time, end: cls.end_time },
-            activityB: { label: evt.title, date: evt.date, start: evt.start_time, end: evt.end_time },
+            activityA: { label: cls.subject, date: evtDate, start: cls.start_time, end: cls.end_time },
+            activityB: { label: evt.title, date: evtDate, start: evt.start_time, end: evt.end_time },
             overlapStart: formatTimeFromMinutes(overlapStart),
             overlapEnd: formatTimeFromMinutes(overlapEnd),
-            date: evt.date,
+            date: evtDate,
             message: `Schedule Clash Detected: ${cls.subject} Class overlaps with the ${evt.title} from ${formatTimeFromMinutes(overlapStart)} to ${formatTimeFromMinutes(overlapEnd)}.`,
           });
         }
@@ -232,21 +255,22 @@ function detectClashes(
   }
 
   for (const evt of events) {
+    const evtDate = getEventDate(evt);
     for (const ann of announcements) {
       if (!ann.event_time) continue;
       const annDate = ann.event_date || ann.date;
-      if (sameDate(evt.date, annDate)) {
+      if (sameDate(evtDate, annDate)) {
         const annEnd = addOneHour(ann.event_time);
         if (rangesOverlap(toMinutes(evt.start_time), toMinutes(evt.end_time), toMinutes(ann.event_time), toMinutes(annEnd))) {
           const overlapStart = Math.max(toMinutes(evt.start_time), toMinutes(ann.event_time));
           const overlapEnd = Math.min(toMinutes(evt.end_time), toMinutes(annEnd));
           clashes.push({
             type: "event_announcement",
-            activityA: { label: evt.title, date: evt.date, start: evt.start_time, end: evt.end_time },
+            activityA: { label: evt.title, date: evtDate, start: evt.start_time, end: evt.end_time },
             activityB: { label: ann.title, date: annDate, start: ann.event_time, end: annEnd },
             overlapStart: formatTimeFromMinutes(overlapStart),
             overlapEnd: formatTimeFromMinutes(overlapEnd),
-            date: evt.date,
+            date: evtDate,
             message: `Schedule Clash Detected: ${evt.title} overlaps with the ${ann.title} announcement event from ${formatTimeFromMinutes(overlapStart)} to ${formatTimeFromMinutes(overlapEnd)}.`,
           });
         }
@@ -258,18 +282,112 @@ function detectClashes(
     for (let j = i + 1; j < events.length; j++) {
       const a = events[i];
       const b = events[j];
-      if (sameDate(a.date, b.date)) {
+      const aDate = getEventDate(a);
+      const bDate = getEventDate(b);
+      if (sameDate(aDate, bDate)) {
         if (rangesOverlap(toMinutes(a.start_time), toMinutes(a.end_time), toMinutes(b.start_time), toMinutes(b.end_time))) {
           const overlapStart = Math.max(toMinutes(a.start_time), toMinutes(b.start_time));
           const overlapEnd = Math.min(toMinutes(a.end_time), toMinutes(b.end_time));
           clashes.push({
             type: "event_event",
-            activityA: { label: a.title, date: a.date, start: a.start_time, end: a.end_time },
-            activityB: { label: b.title, date: b.date, start: b.start_time, end: b.end_time },
+            activityA: { label: a.title, date: aDate, start: a.start_time, end: a.end_time },
+            activityB: { label: b.title, date: bDate, start: b.start_time, end: b.end_time },
+            overlapStart: formatTimeFromMinutes(overlapStart),
+            overlapEnd: formatTimeFromMinutes(overlapEnd),
+            date: aDate,
+            message: `Schedule Clash Detected: ${a.title} overlaps with ${b.title} from ${formatTimeFromMinutes(overlapStart)} to ${formatTimeFromMinutes(overlapEnd)}.`,
+          });
+        }
+      }
+    }
+  }
+
+  // CR Update clashes
+  const relevantCrUpdates = (crUpdates || []).filter(isScheduleRelevantCr);
+  const getCrEnd = (cr: ServerCrUpdate): string => cr.end_time || addOneHour(cr.start_time);
+
+  for (const cr of relevantCrUpdates) {
+    const crEnd = getCrEnd(cr);
+    for (const cls of classes) {
+      const datesMatch = cls.date ? sameDate(cls.date, cr.date) : sameDayOfWeek(cls.day_of_week, cr.date);
+      if (datesMatch && rangesOverlap(toMinutes(cr.start_time), toMinutes(crEnd), toMinutes(cls.start_time), toMinutes(cls.end_time))) {
+        const overlapStart = Math.max(toMinutes(cr.start_time), toMinutes(cls.start_time));
+        const overlapEnd = Math.min(toMinutes(crEnd), toMinutes(cls.end_time));
+        clashes.push({
+          type: "class_cr",
+          activityA: { label: cr.subject, date: cr.date, start: cr.start_time, end: crEnd },
+          activityB: { label: cls.subject, date: cr.date, start: cls.start_time, end: cls.end_time },
+          overlapStart: formatTimeFromMinutes(overlapStart),
+          overlapEnd: formatTimeFromMinutes(overlapEnd),
+          date: cr.date,
+          message: `Schedule Clash Detected: ${cr.subject} (${cr.update_type}) overlaps with ${cls.subject} Class from ${formatTimeFromMinutes(overlapStart)} to ${formatTimeFromMinutes(overlapEnd)}.`,
+        });
+      }
+    }
+  }
+
+  for (const cr of relevantCrUpdates) {
+    const crEnd = getCrEnd(cr);
+    for (const evt of events) {
+      const evtDate = getEventDate(evt);
+      if (sameDate(cr.date, evtDate) && rangesOverlap(toMinutes(cr.start_time), toMinutes(crEnd), toMinutes(evt.start_time), toMinutes(evt.end_time))) {
+        const overlapStart = Math.max(toMinutes(cr.start_time), toMinutes(evt.start_time));
+        const overlapEnd = Math.min(toMinutes(crEnd), toMinutes(evt.end_time));
+        clashes.push({
+          type: "cr_event",
+          activityA: { label: cr.subject, date: cr.date, start: cr.start_time, end: crEnd },
+          activityB: { label: evt.title, date: evtDate, start: evt.start_time, end: evt.end_time },
+          overlapStart: formatTimeFromMinutes(overlapStart),
+          overlapEnd: formatTimeFromMinutes(overlapEnd),
+          date: cr.date,
+          message: `Schedule Clash Detected: ${cr.subject} (${cr.update_type}) overlaps with the ${evt.title} from ${formatTimeFromMinutes(overlapStart)} to ${formatTimeFromMinutes(overlapEnd)}.`,
+        });
+      }
+    }
+  }
+
+  for (const cr of relevantCrUpdates) {
+    const crEnd = getCrEnd(cr);
+    for (const ann of announcements) {
+      if (!ann.event_time) continue;
+      const annDate = ann.event_date || ann.date;
+      if (sameDate(cr.date, annDate)) {
+        const annEnd = addOneHour(ann.event_time);
+        if (rangesOverlap(toMinutes(cr.start_time), toMinutes(crEnd), toMinutes(ann.event_time), toMinutes(annEnd))) {
+          const overlapStart = Math.max(toMinutes(cr.start_time), toMinutes(ann.event_time));
+          const overlapEnd = Math.min(toMinutes(crEnd), toMinutes(annEnd));
+          clashes.push({
+            type: "cr_announcement",
+            activityA: { label: cr.subject, date: cr.date, start: cr.start_time, end: crEnd },
+            activityB: { label: ann.title, date: annDate, start: ann.event_time, end: annEnd },
+            overlapStart: formatTimeFromMinutes(overlapStart),
+            overlapEnd: formatTimeFromMinutes(overlapEnd),
+            date: cr.date,
+            message: `Schedule Clash Detected: ${cr.subject} (${cr.update_type}) overlaps with the ${ann.title} announcement event from ${formatTimeFromMinutes(overlapStart)} to ${formatTimeFromMinutes(overlapEnd)}.`,
+          });
+        }
+      }
+    }
+  }
+
+  for (let i = 0; i < relevantCrUpdates.length; i++) {
+    for (let j = i + 1; j < relevantCrUpdates.length; j++) {
+      const a = relevantCrUpdates[i];
+      const b = relevantCrUpdates[j];
+      if (sameDate(a.date, b.date)) {
+        const aEnd = getCrEnd(a);
+        const bEnd = getCrEnd(b);
+        if (rangesOverlap(toMinutes(a.start_time), toMinutes(aEnd), toMinutes(b.start_time), toMinutes(bEnd))) {
+          const overlapStart = Math.max(toMinutes(a.start_time), toMinutes(b.start_time));
+          const overlapEnd = Math.min(toMinutes(aEnd), toMinutes(bEnd));
+          clashes.push({
+            type: "cr_cr",
+            activityA: { label: a.subject, date: a.date, start: a.start_time, end: aEnd },
+            activityB: { label: b.subject, date: b.date, start: b.start_time, end: bEnd },
             overlapStart: formatTimeFromMinutes(overlapStart),
             overlapEnd: formatTimeFromMinutes(overlapEnd),
             date: a.date,
-            message: `Schedule Clash Detected: ${a.title} overlaps with ${b.title} from ${formatTimeFromMinutes(overlapStart)} to ${formatTimeFromMinutes(overlapEnd)}.`,
+            message: `Schedule Clash Detected: ${a.subject} (${a.update_type}) overlaps with ${b.subject} (${b.update_type}) from ${formatTimeFromMinutes(overlapStart)} to ${formatTimeFromMinutes(overlapEnd)}.`,
           });
         }
       }
@@ -771,7 +889,8 @@ Deno.serve(async (req: Request) => {
       const allEvents: ServerEventEntry[] = (allEventsRes.data as ServerEventEntry[]) || [];
       const allAnnouncements: ServerAnnouncement[] = (allAnnouncementsRes.data as ServerAnnouncement[]) || [];
       const allClasses: ServerClassEntry[] = (allClassesRes.data as ServerClassEntry[]) || [];
-      detectedClashes = detectClashes(allClasses, allEvents, allAnnouncements);
+      const allCrUpdates: ServerCrUpdate[] = (crUpdatesRes.data as ServerCrUpdate[]) || [];
+      detectedClashes = detectClashes(allClasses, allEvents, allAnnouncements, allCrUpdates);
     }
 
     const contextParts: string[] = [];

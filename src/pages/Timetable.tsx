@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { supabase, type ClassEntry, type EventEntry, type Announcement } from '@/lib/supabase';
+import { supabase, type ClassEntry, type EventEntry, type Announcement, type CrUpdate } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
 import { detectClashes, formatTime12 } from '@/lib/clashDetection';
 import ClashBadge from '@/components/ClashBadge';
@@ -13,6 +13,7 @@ export default function Timetable() {
   const [classes, setClasses] = useState<ClassEntry[]>([]);
   const [events, setEvents] = useState<EventEntry[]>([]);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  const [crUpdates, setCrUpdates] = useState<CrUpdate[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -25,14 +26,16 @@ export default function Timetable() {
   });
 
   async function loadData() {
-    const [classesRes, eventsRes, announcementsRes] = await Promise.all([
+    const [classesRes, eventsRes, announcementsRes, crRes] = await Promise.all([
       supabase.from('classes').select('*').order('start_time'),
       supabase.from('events').select('*').order('date'),
       supabase.from('announcements').select('*').order('date', { ascending: false }),
+      supabase.from('cr_updates').select('*').order('date', { ascending: false }),
     ]);
     setClasses(classesRes.data || []);
     setEvents(eventsRes.data || []);
     setAnnouncements(announcementsRes.data || []);
+    setCrUpdates(crRes.data || []);
     setLoading(false);
   }
 
@@ -40,12 +43,13 @@ export default function Timetable() {
     loadData();
   }, []);
 
-  const clashes = detectClashes(classes, events, undefined, announcements);
+  const clashes = detectClashes(classes, events, undefined, announcements, crUpdates);
   useHighlight();
-  const classClashes = clashes.filter((clash) => clash.type === 'class_class' || clash.type === 'class_event' || clash.type === 'class_announcement');
+  const classClashes = clashes.filter((clash) => clash.type === 'class_class' || clash.type === 'class_event' || clash.type === 'class_announcement' || clash.type === 'class_cr');
+  const otherClashes = clashes.filter((clash) => clash.type === 'event_event' || clash.type === 'event_announcement' || clash.type === 'announcement_announcement' || clash.type === 'cr_event' || clash.type === 'cr_announcement' || clash.type === 'cr_cr');
   const clashedClassIds = new Set<string>();
   clashes.forEach((c) => {
-    if (c.type === 'class_class' || c.type === 'class_event' || c.type === 'class_announcement') {
+    if (c.type === 'class_class' || c.type === 'class_event' || c.type === 'class_announcement' || c.type === 'class_cr') {
       const ids = c.id.split('-').slice(1);
       ids.forEach((id) => {
         const cls = classes.find((cl) => cl.id === id);
@@ -116,6 +120,20 @@ export default function Timetable() {
           </div>
           <div className="space-y-3">
             {classClashes.map((clash) => (
+              <ClashBadge key={clash.id} clash={clash} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {otherClashes.length > 0 && (
+        <div className="mb-8" id="other-clashes">
+          <div className="flex items-center gap-2 mb-4">
+            <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+            <h2 className="text-xl font-bold text-slate-800 dark:text-slate-200">Other Schedule Clashes ({otherClashes.length})</h2>
+          </div>
+          <div className="space-y-3">
+            {otherClashes.map((clash) => (
               <ClashBadge key={clash.id} clash={clash} />
             ))}
           </div>

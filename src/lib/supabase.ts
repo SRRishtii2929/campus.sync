@@ -54,6 +54,7 @@ export interface EventEntry {
   title: string;
   description: string;
   date: string;
+  event_date: string | null;
   start_time: string;
   end_time: string;
   location: string;
@@ -65,6 +66,10 @@ export interface EventEntry {
   image_path: string | null;
   created_by: string | null;
   created_at: string;
+}
+
+export function getEventDate(evt: EventEntry): string {
+  return evt.event_date || evt.date;
 }
 
 export interface Notice {

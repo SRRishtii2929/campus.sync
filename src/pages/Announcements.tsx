@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { supabase, type Announcement, type ClassEntry, type EventEntry } from '@/lib/supabase';
+import { supabase, type Announcement, type ClassEntry, type EventEntry, type CrUpdate } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
 import { detectClashes, formatDate } from '@/lib/clashDetection';
 import ClashBadge from '@/components/ClashBadge';
@@ -24,6 +24,7 @@ export default function Announcements() {
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [classes, setClasses] = useState<ClassEntry[]>([]);
   const [events, setEvents] = useState<EventEntry[]>([]);
+  const [crUpdates, setCrUpdates] = useState<CrUpdate[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -55,11 +56,11 @@ export default function Announcements() {
   const isPendingSocietyAdmin = profile?.role === 'society_admin' && profile?.approval_status !== 'approved';
   useHighlight();
 
-  const clashes = isStudent ? detectClashes(classes, events, undefined, announcements) : [];
-  const announcementClashes = clashes.filter((clash) => clash.type === 'class_announcement' || clash.type === 'announcement_announcement' || clash.type === 'event_announcement');
+  const clashes = isStudent ? detectClashes(classes, events, undefined, announcements, crUpdates) : [];
+  const announcementClashes = clashes.filter((clash) => clash.type === 'class_announcement' || clash.type === 'announcement_announcement' || clash.type === 'event_announcement' || clash.type === 'cr_announcement');
   const clashedAnnouncementIds = new Set<string>();
   clashes.forEach((c) => {
-    if (c.type === 'class_announcement' || c.type === 'announcement_announcement' || c.type === 'event_announcement') {
+    if (c.type === 'class_announcement' || c.type === 'announcement_announcement' || c.type === 'event_announcement' || c.type === 'cr_announcement') {
       announcements.forEach((ann) => {
         if (c.id.includes(ann.id)) clashedAnnouncementIds.add(ann.id);
       });
@@ -67,14 +68,16 @@ export default function Announcements() {
   });
 
   async function loadData() {
-    const [annRes, classesRes, eventsRes] = await Promise.all([
+    const [annRes, classesRes, eventsRes, crRes] = await Promise.all([
       supabase.from('announcements').select('*').order('date', { ascending: false }),
       supabase.from('classes').select('*').order('start_time'),
       supabase.from('events').select('*').order('date'),
+      supabase.from('cr_updates').select('*').order('date', { ascending: false }),
     ]);
     setAnnouncements(annRes.data || []);
     setClasses(classesRes.data || []);
     setEvents(eventsRes.data || []);
+    setCrUpdates(crRes.data || []);
     setLoading(false);
   }
 

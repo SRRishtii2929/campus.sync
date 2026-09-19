@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { supabase, type EventEntry, type ClassEntry, type Announcement } from '@/lib/supabase';
+import { supabase, type EventEntry, type ClassEntry, type Announcement, type CrUpdate, getEventDate } from '@/lib/supabase';
 import { useHighlight } from '@/lib/useHighlight';
 import { useAuth } from '@/context/AuthContext';
 import { detectClashes, formatDate, formatTime12 } from '@/lib/clashDetection';
@@ -24,6 +24,7 @@ export default function Events() {
   const [events, setEvents] = useState<EventEntry[]>([]);
   const [classes, setClasses] = useState<ClassEntry[]>([]);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  const [crUpdates, setCrUpdates] = useState<CrUpdate[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -32,6 +33,7 @@ export default function Events() {
     title: '',
     description: '',
     date: '',
+    event_date: '',
     start_time: '10:00',
     end_time: '12:00',
     location: '',
@@ -49,14 +51,16 @@ export default function Events() {
   useHighlight();
 
   async function loadData() {
-    const [eventsRes, classesRes, announcementsRes] = await Promise.all([
+    const [eventsRes, classesRes, announcementsRes, crRes] = await Promise.all([
       supabase.from('events').select('*').order('date'),
       supabase.from('classes').select('*').order('start_time'),
       supabase.from('announcements').select('*').order('date', { ascending: false }),
+      supabase.from('cr_updates').select('*').order('date', { ascending: false }),
     ]);
     setEvents(eventsRes.data || []);
     setClasses(classesRes.data || []);
     setAnnouncements(announcementsRes.data || []);
+    setCrUpdates(crRes.data || []);
     setLoading(false);
   }
 
@@ -64,11 +68,11 @@ export default function Events() {
     loadData();
   }, []);
 
-  const clashes = profile?.role === 'student' ? detectClashes(classes, events, undefined, announcements) : [];
-  const eventClashes = clashes.filter((clash) => clash.type === 'class_event' || clash.type === 'event_event' || clash.type === 'event_announcement');
+  const clashes = profile?.role === 'student' ? detectClashes(classes, events, undefined, announcements, crUpdates) : [];
+  const eventClashes = clashes.filter((clash) => clash.type === 'class_event' || clash.type === 'event_event' || clash.type === 'event_announcement' || clash.type === 'cr_event');
   const eventClashIds = new Set<string>();
   clashes.forEach((c) => {
-    if (c.type === 'class_event' || c.type === 'event_event' || c.type === 'event_announcement') {
+    if (c.type === 'class_event' || c.type === 'event_event' || c.type === 'event_announcement' || c.type === 'cr_event') {
       const ids = c.id.split('-').slice(1);
       ids.forEach((id) => {
         if (events.some((e) => e.id === id)) eventClashIds.add(id);
@@ -77,7 +81,7 @@ export default function Events() {
   });
 
   function resetForm() {
-    setForm({ title: '', description: '', date: '', start_time: '10:00', end_time: '12:00', location: '', organizer: 'College Administration', registration_url: '', target_branches: [], target_years: [], target_interests: [] });
+    setForm({ title: '', description: '', date: '', event_date: '', start_time: '10:00', end_time: '12:00', location: '', organizer: 'College Administration', registration_url: '', target_branches: [], target_years: [], target_interests: [] });
     setEditingId(null);
     setShowForm(false);
     setPendingImage(null);
@@ -127,6 +131,7 @@ export default function Events() {
         title: form.title,
         description: form.description,
         date: form.date,
+        event_date: form.event_date || null,
         start_time: form.start_time,
         end_time: form.end_time,
         location: form.location || 'TBD',
@@ -143,6 +148,7 @@ export default function Events() {
         title: form.title,
         description: form.description,
         date: form.date,
+        event_date: form.event_date || null,
         start_time: form.start_time,
         end_time: form.end_time,
         location: form.location || 'TBD',
@@ -176,6 +182,7 @@ export default function Events() {
       title: evt.title,
       description: evt.description,
       date: evt.date,
+      event_date: evt.event_date || '',
       start_time: evt.start_time,
       end_time: evt.end_time,
       location: evt.location,
@@ -260,9 +267,15 @@ export default function Events() {
                 className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 dark:text-slate-200 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 outline-none" rows={2} placeholder="Event description..." />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Date</label>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Publish Date</label>
               <input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} required
                 className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 dark:text-slate-200 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 outline-none" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Event Date</label>
+              <input type="date" value={form.event_date} onChange={(e) => setForm({ ...form, event_date: e.target.value })}
+                className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 dark:text-slate-200 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 outline-none" />
+              <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">When the event actually takes place. Leave empty to use the publish date.</p>
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Location</label>
@@ -422,7 +435,10 @@ export default function Events() {
                       )}
                     </div>
                     <div className="flex flex-wrap gap-x-4 gap-y-1 mt-3 text-xs text-slate-500 dark:text-slate-400">
-                      <p className="flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5" /> {formatDate(evt.date)}</p>
+                      <p className="flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5" /> {formatDate(getEventDate(evt))}</p>
+                      {evt.event_date && evt.event_date !== evt.date && (
+                        <p className="flex items-center gap-1.5 text-slate-400 dark:text-slate-500"><Calendar className="w-3 h-3" /> Posted: {evt.date}</p>
+                      )}
                       <p className="flex items-center gap-1.5"><Clock className="w-3.5 h-3.5" /> {formatTime12(evt.start_time)} – {formatTime12(evt.end_time)}</p>
                       <p className="flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5" /> {evt.location}</p>
                       <p className="flex items-center gap-1.5"><Users className="w-3.5 h-3.5" /> {evt.organizer}</p>

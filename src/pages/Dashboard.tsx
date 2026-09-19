@@ -61,12 +61,12 @@ export default function Dashboard() {
     loadData();
   }, []);
 
-  const allClashes = detectClashes(classes, events, undefined, announcements);
+  const allClashes = detectClashes(classes, events, undefined, announcements, crUpdates);
   const clashes = isStudent ? allClashes : [];
   const todayName = new Date().toLocaleDateString('en-US', { weekday: 'long' });
   const todayClasses = classes.filter((c) => c.day_of_week === todayName || c.date === new Date().toISOString().split('T')[0]);
   const todayStr = new Date().toISOString().split('T')[0];
-  const upcomingEvents = events.filter((e) => new Date(e.date) >= new Date(new Date().toDateString())).slice(0, 4);
+  const upcomingEvents = events.filter((e) => new Date(e.event_date || e.date) >= new Date(new Date().toDateString())).slice(0, 4);
 
   const now = new Date();
   const activeCrUpdates = crUpdates.filter((u) => {
@@ -384,7 +384,7 @@ export default function Dashboard() {
                 return (
                   <div key={evt.id} className={`flex items-center gap-3 p-3 rounded-xl border ${clashExists ? 'border-red-300 dark:border-red-800 bg-red-50 dark:bg-red-950/40' : 'border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900'}`}>
                     <div className="flex flex-col items-center min-w-[60px]">
-                      <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">{new Date(evt.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                      <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">{new Date(evt.event_date || evt.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
                       <span className="text-xs text-slate-400 dark:text-slate-500">{formatTime12(evt.start_time)}</span>
                     </div>
                     <div className="flex-1">
@@ -448,7 +448,7 @@ export default function Dashboard() {
           ) : (
             <div className="space-y-2">
               {announcements.map((ann) => {
-                const clashExists = isStudent && clashes.some(c => (c.type === 'class_announcement' || c.type === 'announcement_announcement' || c.type === 'event_announcement') && (c.id.includes(ann.id)));
+                const clashExists = isStudent && clashes.some(c => (c.type === 'class_announcement' || c.type === 'announcement_announcement' || c.type === 'event_announcement' || c.type === 'cr_announcement') && (c.id.includes(ann.id)));
                 return (
                   <div key={ann.id} className={`p-3 rounded-xl border ${clashExists ? 'border-red-300 dark:border-red-800 bg-red-50 dark:bg-red-950/40' : 'border-slate-200 dark:border-slate-700 bg-purple-50/50 dark:bg-purple-900/20'}`}>
                     <div className="flex items-center justify-between">
